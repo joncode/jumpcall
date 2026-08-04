@@ -1,4 +1,5 @@
 {
+  "autoReposition": true,
   "browsers": [
     "safari",
     "chrome",

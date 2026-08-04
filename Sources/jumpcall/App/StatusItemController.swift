@@ -2,34 +2,59 @@ import AppKit
 
 @MainActor
 final class StatusItemController: NSObject {
-    private let statusItem: NSStatusItem
+    private var statusItem: NSStatusItem
     private let engine: DetectionEngine
     private let config: Config
     private(set) var state: CallState = .none
     private var paused = false
+    private var rescued = false
+    private var diagnosticsTimer: Timer?
 
     var onJumpRequested: (() -> Void)?
 
+    // macOS stores a status item's spot as "points from the right edge of the
+    // screen" under this key — smaller is further right, and rightmost icons
+    // are the last ones a crowded menu bar hides. There is no official
+    // positioning API, but seeding the preference before creating the item
+    // is honored, and a user's manual ⌘-drag simply overwrites it.
+    private static let autosave = "JumpCall"
+    private static let positionKey = "NSStatusItem Preferred Position \(autosave)"
+
     init(engine: DetectionEngine, config: Config) {
-        self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         self.engine = engine
         self.config = config
+        Self.seedPreferredPosition(ifAbsent: 80)
+        self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
-        // Stable autosave name: once the user Cmd-drags the icon to a spot
-        // (ideally far right, near the clock — crowded menu bars hide the
-        // leftmost status items first), that position survives relaunches.
-        statusItem.autosaveName = "JumpCall"
-        if let button = statusItem.button {
-            button.image = Self.idleImage()
-            button.target = self
-            button.action = #selector(statusItemClicked)
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            button.toolTip = "JumpCall — no live call"
+        configureItem()
+        startDiagnostics()
+    }
+
+    private static func seedPreferredPosition(ifAbsent points: Double? = nil, force: Double? = nil) {
+        let defaults = UserDefaults.standard
+        if let force {
+            defaults.set(force, forKey: positionKey)
+        } else if let points, defaults.object(forKey: positionKey) == nil {
+            defaults.set(points, forKey: positionKey)
         }
+    }
+
+    private func configureItem() {
+        statusItem.autosaveName = Self.autosave
+        guard let button = statusItem.button else { return }
+        button.target = self
+        button.action = #selector(statusItemClicked)
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        applyState()
     }
 
     func update(state: CallState) {
         self.state = state
+        applyState()
+        reportDiagnostics()
+    }
+
+    private func applyState() {
         guard let button = statusItem.button else { return }
         switch state {
         case .live(let handle):
@@ -47,6 +72,93 @@ final class StatusItemController: NSObject {
     func showNoCall() {
         update(state: .none)
         showMenu()
+    }
+
+    // MARK: - Visibility diagnostics & auto-rescue
+
+    private struct IconDiagnostics {
+        var hasWindow = false
+        var frame: CGRect = .zero
+        var windowVisible = false
+        var occluded = true
+        var onScreen = false
+        var hidden: Bool { !hasWindow || !windowVisible || !onScreen || occluded }
+    }
+
+    private func startDiagnostics() {
+        let timer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.diagnosticsTick() }
+        }
+        diagnosticsTimer = timer
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+            self?.diagnosticsTick()
+        }
+    }
+
+    private func diagnosticsTick() {
+        let diag = currentDiagnostics()
+        reportDiagnostics(diag)
+        if diag.hidden, config.autoReposition, !rescued {
+            rescued = true
+            rescue()
+        }
+    }
+
+    private func currentDiagnostics() -> IconDiagnostics {
+        var diag = IconDiagnostics()
+        guard let window = statusItem.button?.window else { return diag }
+        diag.hasWindow = true
+        diag.frame = window.frame
+        diag.windowVisible = window.isVisible
+        diag.occluded = !window.occlusionState.contains(.visible)
+        diag.onScreen = NSScreen.screens.contains { $0.frame.intersects(window.frame) }
+        return diag
+    }
+
+    /// Re-create the status item at a further-right position: when the menu
+    /// bar overflows, macOS then hides some other icon instead of ours.
+    /// Once per launch, and only when actually hidden.
+    private func rescue() {
+        NSStatusBar.system.removeStatusItem(statusItem)
+        Self.seedPreferredPosition(force: 40)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        configureItem()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self else { return }
+            self.reportDiagnostics()
+        }
+    }
+
+    /// Written for `jumpcall status` (a separate process) to read, so users
+    /// get a straight answer to "is my icon even visible right now?".
+    private func reportDiagnostics(_ diag: IconDiagnostics? = nil) {
+        let d = diag ?? currentDiagnostics()
+        let stateDescription: String
+        if case .live(let handle) = state {
+            stateDescription = "live: \(handle.displayName)"
+        } else {
+            stateDescription = paused ? "paused" : "none"
+        }
+        let payload: [String: Any] = [
+            "updatedAt": ISO8601DateFormatter().string(from: Date()),
+            "pid": ProcessInfo.processInfo.processIdentifier,
+            "state": stateDescription,
+            "icon": [
+                "x": d.frame.origin.x,
+                "y": d.frame.origin.y,
+                "width": d.frame.width,
+                "screenWidth": NSScreen.main?.frame.width ?? 0,
+                "hasWindow": d.hasWindow,
+                "windowVisible": d.windowVisible,
+                "occluded": d.occluded,
+                "onScreen": d.onScreen,
+                "hidden": d.hidden,
+                "rescued": rescued,
+                "preferredPosition": UserDefaults.standard.double(forKey: Self.positionKey),
+            ],
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]) else { return }
+        try? data.write(to: ConfigStore.runtimeFile, options: .atomic)
     }
 
     // MARK: - Click handling

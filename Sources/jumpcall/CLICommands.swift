@@ -9,6 +9,7 @@ enum CLI {
         print("jumpcall \(AppInfo.version)")
         print("config: \(ConfigStore.configFile.path)")
         print("launch at login: \(LoginItem.isEnabled ? "enabled" : "disabled")")
+        printIconStatus()
         print("")
         print("detection (note: browser permission prompts from the CLI attach to your terminal app):")
         for matcher in registry.orderedMatchers {
@@ -38,6 +39,31 @@ enum CLI {
             }
             print("")
             print("CptHost (Zoom meeting helper) running: \(ProcessProbe.isProcessRunning(named: "CptHost"))")
+        }
+    }
+
+    private static func printIconStatus() {
+        guard let data = try? Data(contentsOf: ConfigStore.runtimeFile),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let stamp = json["updatedAt"] as? String,
+              let updated = ISO8601DateFormatter().date(from: stamp),
+              let icon = json["icon"] as? [String: Any] else {
+            print("menu-bar icon: unknown (app not running, or older version)")
+            return
+        }
+        guard Date().timeIntervalSince(updated) < 120 else {
+            print("menu-bar icon: unknown (app not running? last report \(stamp))")
+            return
+        }
+        let hidden = icon["hidden"] as? Bool ?? false
+        let rescued = icon["rescued"] as? Bool ?? false
+        if hidden {
+            let suffix = rescued ? " — auto-reposition already attempted; free up menu-bar space or try Ice" : ""
+            print("menu-bar icon: HIDDEN (menu bar is full; macOS hides overflow icons)\(suffix)")
+        } else {
+            let x = icon["x"] as? Double ?? 0
+            let screen = icon["screenWidth"] as? Double ?? 0
+            print("menu-bar icon: visible (x=\(Int(x)) of \(Int(screen)))")
         }
     }
 

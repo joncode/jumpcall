@@ -27,6 +27,9 @@ struct Config: Codable, Sendable {
     var meetPollMultiplier: Int
     /// "tint" (green symbol when live) or "badge" (template symbol + green dot).
     var iconStyle: String
+    /// If the icon gets hidden by menu-bar overflow, re-create it once at a
+    /// more favorable (further right) position.
+    var autoReposition: Bool
     var browsers: [String]
     var platforms: [PlatformConfig]
     var micMatchers: [MicMatcherConfig]
@@ -35,6 +38,7 @@ struct Config: Codable, Sendable {
         pollSeconds: 5,
         meetPollMultiplier: 1,
         iconStyle: "tint",
+        autoReposition: true,
         browsers: ["safari", "chrome", "brave"],
         platforms: [
             PlatformConfig(id: "zoom", enabled: true, priority: 1),
@@ -61,12 +65,13 @@ struct Config: Codable, Sendable {
     )
 
     init(
-        pollSeconds: Double, meetPollMultiplier: Int, iconStyle: String,
+        pollSeconds: Double, meetPollMultiplier: Int, iconStyle: String, autoReposition: Bool,
         browsers: [String], platforms: [PlatformConfig], micMatchers: [MicMatcherConfig]
     ) {
         self.pollSeconds = pollSeconds
         self.meetPollMultiplier = meetPollMultiplier
         self.iconStyle = iconStyle
+        self.autoReposition = autoReposition
         self.browsers = browsers
         self.platforms = platforms
         self.micMatchers = micMatchers
@@ -80,6 +85,7 @@ struct Config: Codable, Sendable {
         pollSeconds = try c.decodeIfPresent(Double.self, forKey: .pollSeconds) ?? d.pollSeconds
         meetPollMultiplier = try c.decodeIfPresent(Int.self, forKey: .meetPollMultiplier) ?? d.meetPollMultiplier
         iconStyle = try c.decodeIfPresent(String.self, forKey: .iconStyle) ?? d.iconStyle
+        autoReposition = try c.decodeIfPresent(Bool.self, forKey: .autoReposition) ?? d.autoReposition
         browsers = try c.decodeIfPresent([String].self, forKey: .browsers) ?? d.browsers
         platforms = try c.decodeIfPresent([PlatformConfig].self, forKey: .platforms) ?? d.platforms
         micMatchers = try c.decodeIfPresent([MicMatcherConfig].self, forKey: .micMatchers) ?? d.micMatchers
@@ -94,6 +100,11 @@ enum ConfigStore {
 
     static var configFile: URL {
         configDir.appending(path: "config.json")
+    }
+
+    /// Live state the menu-bar app writes for the `status` CLI to read.
+    static var runtimeFile: URL {
+        configDir.appending(path: "runtime.json")
     }
 
     static func load() -> Config {
