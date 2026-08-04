@@ -1,0 +1,66 @@
+{
+  "browsers": [
+    "safari",
+    "chrome",
+    "brave"
+  ],
+  "iconStyle": "tint",
+  "meetPollMultiplier": 1,
+  "micMatchers": [
+    {
+      "bundlePrefixes": [
+        "com.microsoft.teams"
+      ],
+      "displayName": "Microsoft Teams",
+      "id": "teams"
+    },
+    {
+      "bundlePrefixes": [
+        "Cisco-Systems.Spark",
+        "com.webex",
+        "com.cisco.webex"
+      ],
+      "displayName": "Webex",
+      "id": "webex"
+    },
+    {
+      "activateBundleID": "com.apple.FaceTime",
+      "bundlePrefixes": [
+        "com.apple.FaceTime",
+        "com.apple.avconferenced",
+        "com.apple.TelephonyUtilities"
+      ],
+      "displayName": "FaceTime",
+      "id": "facetime",
+      "requireAppRunningPrefix": "com.apple.FaceTime"
+    }
+  ],
+  "platforms": [
+    {
+      "enabled": true,
+      "id": "zoom",
+      "priority": 1
+    },
+    {
+      "enabled": true,
+      "id": "meet",
+      "priority": 2
+    },
+    {
+      "enabled": true,
+      "id": "teams",
+      "priority": 3
+    },
+    {
+      "enabled": true,
+      "id": "webex",
+      "priority": 4
+    },
+    {
+      "enabled": true,
+      "id": "facetime",
+      "priority": 5
+    }
+  ],
+  "pollSeconds": 5
+}
