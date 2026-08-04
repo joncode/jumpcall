@@ -249,6 +249,17 @@ final class StatusItemController: NSObject {
         quit.target = self
         menu.addItem(quit)
 
+        menu.addItem(.separator())
+        // No action → disabled → rendered grey. Small font to read as a hint.
+        let hint = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        hint.attributedTitle = NSAttributedString(
+            string: "To move this icon right in the menu bar:\nhold ⌘ (Command), then click-and-drag it.",
+            attributes: [
+                .font: NSFont.menuFont(ofSize: 11),
+                .foregroundColor: NSColor.secondaryLabelColor,
+            ])
+        menu.addItem(hint)
+
         return menu
     }
 
