@@ -15,6 +15,10 @@ final class StatusItemController: NSObject {
         self.engine = engine
         self.config = config
         super.init()
+        // Stable autosave name: once the user Cmd-drags the icon to a spot
+        // (ideally far right, near the clock — crowded menu bars hide the
+        // leftmost status items first), that position survives relaunches.
+        statusItem.autosaveName = "JumpCall"
         if let button = statusItem.button {
             button.image = Self.idleImage()
             button.target = self
