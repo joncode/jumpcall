@@ -99,6 +99,27 @@ then add `{"id": "discord", "enabled": true, "priority": 6}` to `platforms`.
 Tip: run `jumpcall status --verbose` *during a call* to see exactly which
 bundle id owns the microphone.
 
+## Troubleshooting
+
+**Granted Accessibility but `jumpcall status` still says "waiting"?** The
+grant is tied to the exact signed binary, and jumpcall is ad-hoc signed — so
+each *rebuild* you install is a "new app" to macOS and the old System
+Settings row goes stale. Fix:
+
+```bash
+tccutil reset Accessibility io.github.joncode.jumpcall
+```
+
+then relaunch JumpCall and grant the fresh prompt. This only affects
+re-installing newer builds; a one-time install never hits it. (Signing with
+a stable identity to remove this paper cut entirely is on the roadmap.)
+
+**Icon not in the menu bar?** `jumpcall status` says whether it's genuinely
+hidden by menu-bar overflow (macOS hides overflow icons silently). jumpcall
+auto-repositions once per launch; if your bar is chronically full, free up
+icons or use [Ice](https://github.com/jordanbaird/Ice). The hotkey works
+regardless.
+
 ## Uninstall
 
 ```bash
