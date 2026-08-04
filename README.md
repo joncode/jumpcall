@@ -111,8 +111,13 @@ tccutil reset Accessibility io.github.joncode.jumpcall
 ```
 
 then relaunch JumpCall and grant the fresh prompt. This only affects
-re-installing newer builds; a one-time install never hits it. (Signing with
-a stable identity to remove this paper cut entirely is on the roadmap.)
+re-installing newer builds; a one-time install never hits it.
+
+**Rebuilding often?** Give the build a stable identity so grants survive:
+open Keychain Access → menu Keychain Access → Certificate Assistant →
+Create a Certificate… → Name: `JumpCall Dev`, Identity Type: Self-Signed
+Root, Certificate Type: **Code Signing** → Create. The Makefile detects it
+automatically; ask to always allow codesign access on the first build.
 
 **Icon not in the menu bar?** `jumpcall status` says whether it's genuinely
 hidden by menu-bar overflow (macOS hides overflow icons silently). jumpcall
