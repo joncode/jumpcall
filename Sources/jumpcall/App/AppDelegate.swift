@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var engine: DetectionEngine?
     private var statusController: StatusItemController?
     private var coordinator: JumpCoordinator?
+    private var hotkey: HotkeyManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let config = ConfigStore.load()
@@ -28,6 +29,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ) { _ in engine.setSystemAsleep(false) }
 
         engine.start()
+
+        if config.hotkeyEnabled {
+            let spec = KeySpec.parse(config.hotkey) ?? .default
+            let hotkey = HotkeyManager(
+                spec: spec,
+                isLive: { engine.cachedState.isLive },
+                onTrigger: {
+                    Task { @MainActor in coordinator.jumpToLiveCall() }
+                })
+            hotkey.startWhenPermitted(promptOnce: !HotkeyManager.hasAccessibilityPermission)
+            statusController.hotkey = hotkey
+            self.hotkey = hotkey
+        }
 
         self.engine = engine
         self.statusController = statusController

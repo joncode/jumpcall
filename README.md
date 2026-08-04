@@ -8,6 +8,18 @@ were buried in. The Zoom meeting window comes to the front; a Google Meet
 jumps to the *exact browser tab*, in the right window, in the right browser.
 No live call? The click just shows a small menu.
 
+There's also a **global hotkey — ⌃⌥⌘M by default** — with a pass-through
+contract: while a call is live, the chord jumps you to it from anywhere;
+when no call is live, the chord is not consumed at all and behaves exactly
+as if jumpcall didn't exist. The hotkey needs macOS's Accessibility
+permission (one grant, prompted on first launch); decline it and everything
+else keeps working. And because crowded menu bars silently hide status
+icons (mid-call is the worst moment: the mic indicator and the call app's
+own icon land right as ours turns green), jumpcall seeds itself a
+favorable right-side position, notices if it gets overflow-hidden, and
+re-creates itself once at a better spot — `jumpcall status` always tells
+you plainly whether the icon is currently visible.
+
 ## Detects
 
 | Platform | How | Permissions needed |
@@ -64,6 +76,10 @@ process). Normal menu-bar usage attributes them to JumpCall.
 `config.example.json`):
 
 - `pollSeconds` — detection cadence (default 5)
+- `hotkey` / `hotkeyEnabled` — the chord, e.g. `"ctrl+alt+cmd+m"` (modifiers:
+  `cmd`, `ctrl`, `alt`, `shift`, `fn`; keys: letters, digits, `f1`–`f19`,
+  `space`, punctuation)
+- `autoReposition` — re-create the icon at a better spot if the menu bar hides it (default true)
 - `platforms` — enable/disable and priority-order the platforms
 - `browsers` — which browsers to scan for Meet: `safari`, `chrome`, `brave`, `edge`, `arc`
 - `iconStyle` — `tint` (green icon when live) or `badge` (green dot)
@@ -102,9 +118,9 @@ to JumpCall itself.
 
 ## Roadmap
 
-- Global hotkey with smart pass-through (only consumed when a call is live)
 - Homebrew tap
 - Raise Zoom's *meeting window* specifically (not just the app)
+- Live hotkey re-capture UI (today: edit config.json and relaunch)
 
 ## License
 

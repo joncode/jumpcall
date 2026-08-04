@@ -11,6 +11,7 @@ final class StatusItemController: NSObject {
     private var diagnosticsTimer: Timer?
 
     var onJumpRequested: (() -> Void)?
+    var hotkey: HotkeyManager?
 
     // macOS stores a status item's spot as "points from the right edge of the
     // screen" under this key — smaller is further right, and rightmost icons
@@ -139,10 +140,15 @@ final class StatusItemController: NSObject {
         } else {
             stateDescription = paused ? "paused" : "none"
         }
+        var hotkeyInfo: [String: Any] = ["enabled": false]
+        if let hotkey {
+            hotkeyInfo = ["enabled": true, "display": hotkey.spec.display, "active": hotkey.isActive]
+        }
         let payload: [String: Any] = [
             "updatedAt": ISO8601DateFormatter().string(from: Date()),
             "pid": ProcessInfo.processInfo.processIdentifier,
             "state": stateDescription,
+            "hotkey": hotkeyInfo,
             "icon": [
                 "x": d.frame.origin.x,
                 "y": d.frame.origin.y,
@@ -206,6 +212,20 @@ final class StatusItemController: NSObject {
 
         menu.addItem(.separator())
 
+        if let hotkey {
+            if hotkey.isActive {
+                menu.addItem(NSMenuItem(
+                    title: "Hotkey \(hotkey.spec.display): on (when a call is live)",
+                    action: nil, keyEquivalent: ""))
+            } else {
+                let item = NSMenuItem(
+                    title: "Enable Hotkey \(hotkey.spec.display) — grant Accessibility…",
+                    action: #selector(openAccessibilitySettings), keyEquivalent: "")
+                item.target = self
+                menu.addItem(item)
+            }
+        }
+
         let pauseItem = NSMenuItem(
             title: paused ? "Resume Detection" : "Pause Detection",
             action: #selector(togglePause), keyEquivalent: "")
@@ -256,6 +276,13 @@ final class StatusItemController: NSObject {
             alert.messageText = "Could not update Login Item"
             alert.informativeText = "\(error.localizedDescription)\n\nTip: run `jumpcall install` so JumpCall lives in ~/Applications, or use `jumpcall install --launchagent` as a fallback."
             alert.runModal()
+        }
+    }
+
+    @objc private func openAccessibilitySettings() {
+        HotkeyManager.promptForAccessibility()
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
         }
     }
 

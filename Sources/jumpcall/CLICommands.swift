@@ -55,6 +55,15 @@ enum CLI {
             print("menu-bar icon: unknown (app not running? last report \(stamp))")
             return
         }
+        if let hotkey = json["hotkey"] as? [String: Any] {
+            if hotkey["enabled"] as? Bool != true {
+                print("hotkey: disabled in config")
+            } else if hotkey["active"] as? Bool == true {
+                print("hotkey: \(hotkey["display"] as? String ?? "?") active (consumed only while a call is live)")
+            } else {
+                print("hotkey: \(hotkey["display"] as? String ?? "?") waiting for Accessibility permission (System Settings → Privacy & Security → Accessibility → JumpCall)")
+            }
+        }
         let hidden = icon["hidden"] as? Bool ?? false
         let rescued = icon["rescued"] as? Bool ?? false
         if hidden {
@@ -109,7 +118,20 @@ enum CLI {
 
 enum AppInfo {
     static var version: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-            ?? "0.1.0-dev"
+        if let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String {
+            return v
+        }
+        // Invoked through the CLI symlink, Bundle.main can't see the app
+        // bundle — resolve the real executable path and read Info.plist.
+        let exec = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0]))
+            .resolvingSymlinksInPath()
+        let plist = exec.deletingLastPathComponent().deletingLastPathComponent()
+            .appending(path: "Info.plist")
+        if let data = try? Data(contentsOf: plist),
+           let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+           let v = dict["CFBundleShortVersionString"] as? String {
+            return v
+        }
+        return "dev"
     }
 }

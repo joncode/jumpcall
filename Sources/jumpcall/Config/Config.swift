@@ -30,6 +30,10 @@ struct Config: Codable, Sendable {
     /// If the icon gets hidden by menu-bar overflow, re-create it once at a
     /// more favorable (further right) position.
     var autoReposition: Bool
+    /// Global hotkey chord, e.g. "ctrl+alt+cmd+m". Only consumed while a
+    /// call is live — otherwise the key passes through untouched.
+    var hotkey: String
+    var hotkeyEnabled: Bool
     var browsers: [String]
     var platforms: [PlatformConfig]
     var micMatchers: [MicMatcherConfig]
@@ -39,6 +43,8 @@ struct Config: Codable, Sendable {
         meetPollMultiplier: 1,
         iconStyle: "tint",
         autoReposition: true,
+        hotkey: "ctrl+alt+cmd+m",
+        hotkeyEnabled: true,
         browsers: ["safari", "chrome", "brave"],
         platforms: [
             PlatformConfig(id: "zoom", enabled: true, priority: 1),
@@ -66,12 +72,15 @@ struct Config: Codable, Sendable {
 
     init(
         pollSeconds: Double, meetPollMultiplier: Int, iconStyle: String, autoReposition: Bool,
+        hotkey: String, hotkeyEnabled: Bool,
         browsers: [String], platforms: [PlatformConfig], micMatchers: [MicMatcherConfig]
     ) {
         self.pollSeconds = pollSeconds
         self.meetPollMultiplier = meetPollMultiplier
         self.iconStyle = iconStyle
         self.autoReposition = autoReposition
+        self.hotkey = hotkey
+        self.hotkeyEnabled = hotkeyEnabled
         self.browsers = browsers
         self.platforms = platforms
         self.micMatchers = micMatchers
@@ -86,6 +95,8 @@ struct Config: Codable, Sendable {
         meetPollMultiplier = try c.decodeIfPresent(Int.self, forKey: .meetPollMultiplier) ?? d.meetPollMultiplier
         iconStyle = try c.decodeIfPresent(String.self, forKey: .iconStyle) ?? d.iconStyle
         autoReposition = try c.decodeIfPresent(Bool.self, forKey: .autoReposition) ?? d.autoReposition
+        hotkey = try c.decodeIfPresent(String.self, forKey: .hotkey) ?? d.hotkey
+        hotkeyEnabled = try c.decodeIfPresent(Bool.self, forKey: .hotkeyEnabled) ?? d.hotkeyEnabled
         browsers = try c.decodeIfPresent([String].self, forKey: .browsers) ?? d.browsers
         platforms = try c.decodeIfPresent([PlatformConfig].self, forKey: .platforms) ?? d.platforms
         micMatchers = try c.decodeIfPresent([MicMatcherConfig].self, forKey: .micMatchers) ?? d.micMatchers

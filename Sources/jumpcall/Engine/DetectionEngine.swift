@@ -11,6 +11,15 @@ final class DetectionEngine: @unchecked Sendable {
     private var userPaused = false
     private var systemAsleep = false
     private var lastState: CallState = .none
+    private let cachedStateLock = NSLock()
+    private var _cachedState: CallState = .none
+
+    /// Thread-safe snapshot of the last detected state. The hotkey's
+    /// pass-through decision reads this — it must never block on the
+    /// engine queue (a slow browser probe would freeze keystrokes).
+    var cachedState: CallState {
+        cachedStateLock.withLock { _cachedState }
+    }
 
     /// Invoked on the main actor whenever the detected state changes.
     /// Set once, before start().
@@ -86,6 +95,7 @@ final class DetectionEngine: @unchecked Sendable {
     }
 
     private func updateState(_ state: CallState) {
+        cachedStateLock.withLock { _cachedState = state }
         guard state != lastState else { return }
         lastState = state
         if let callback = onStateChange {

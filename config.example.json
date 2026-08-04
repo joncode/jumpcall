@@ -5,6 +5,8 @@
     "chrome",
     "brave"
   ],
+  "hotkey": "ctrl+alt+cmd+m",
+  "hotkeyEnabled": true,
   "iconStyle": "tint",
   "meetPollMultiplier": 1,
   "micMatchers": [
