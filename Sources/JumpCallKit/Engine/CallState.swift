@@ -12,6 +12,10 @@ public struct CallHandle: Sendable, Equatable {
     public let browserID: String?
     public let windowIndex: Int?
     public let tabIndex: Int?
+    /// Window title to raise via Accessibility when the call window isn't
+    /// reachable through the browser's scripting API (works across all
+    /// profiles, incognito windows, and PWAs).
+    public let axWindowTitle: String?
 
     init(
         platformID: String,
@@ -20,7 +24,8 @@ public struct CallHandle: Sendable, Equatable {
         activateBundleID: String? = nil,
         browserID: String? = nil,
         windowIndex: Int? = nil,
-        tabIndex: Int? = nil
+        tabIndex: Int? = nil,
+        axWindowTitle: String? = nil
     ) {
         self.platformID = platformID
         self.displayName = displayName
@@ -29,6 +34,7 @@ public struct CallHandle: Sendable, Equatable {
         self.browserID = browserID
         self.windowIndex = windowIndex
         self.tabIndex = tabIndex
+        self.axWindowTitle = axWindowTitle
     }
 }
 

@@ -175,12 +175,35 @@ var failed = 0
     }
 }
 
+
+@MainActor func axPickTests() {
+    func w(_ title: String, _ area: Double) -> AXWindowInfo {
+        AXWindowInfo(pid: 1, title: title, area: area, minimized: false)
+    }
+    let meet = w("Meet – abc-defg-hij", 1000)
+    let teams = w("Standup | Microsoft Teams", 5000)
+    let docs = w("Meeting notes – Google Docs", 9000)
+    let aoraki = w("[QA] Aoraki", 8000)
+
+    expectEqual(AXWindowProbe.pickCallWindow(from: [docs, teams, meet]), meet,
+        "meeting-code match beats marker match regardless of size")
+    expectEqual(AXWindowProbe.pickCallWindow(from: [docs, aoraki, teams]), teams,
+        "marker match beats non-matches")
+    expect(AXWindowProbe.pickCallWindow(from: [docs, aoraki]) == nil,
+        "no call-looking window -> nil")
+    let teamsBig = w("Retro | Microsoft Teams", 9000)
+    expectEqual(AXWindowProbe.pickCallWindow(from: [teams, teamsBig]), teamsBig,
+        "equal strength: larger window wins")
+    expect(AXWindowProbe.pickCallWindow(from: []) == nil, "empty -> nil")
+}
+
 // MARK: - Run
 
 keySpecTests()
 meetURLTests()
 configTests()
 axTitleTests()
+axPickTests()
 
 print("\(passed) passed, \(failed) failed")
 exit(failed == 0 ? 0 : 1)

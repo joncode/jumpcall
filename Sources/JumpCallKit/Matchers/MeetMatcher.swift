@@ -31,22 +31,48 @@ public struct MeetMatcher: PlatformMatcher {
             guard onMain({ ProcessProbe.isAppRunning(bundleID: browser.bundleID) }) else { continue }
             if let handle = probe(browser) { return handle }
         }
-        // The tab scan is blind to other Chrome profiles, incognito windows,
-        // and PWAs (Chrome hides them from AppleScript). But if a browser is
-        // actively using the microphone, there IS a live web call somewhere
-        // in it — report it, and let jump() find the window via AX instead.
+        // The tab scan only sees what the browser's scripting API exposes —
+        // Chrome hides other profiles, incognito windows, and PWAs from it.
+        // The Accessibility scan below is profile-agnostic: it checks every
+        // open window of every running browser and matches call-looking
+        // titles directly.
+        if let handle = axWindowScan() { return handle }
+        // Last resort: a browser is actively using the microphone, so a web
+        // call exists even though no window could be identified.
         return micFallback()
+    }
+
+    private func axWindowScan() -> CallHandle? {
+        for browser in browsers {
+            let pids = onMain {
+                NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID)
+                    .map(\.processIdentifier)
+            }
+            guard !pids.isEmpty else { continue }
+            let windows = onMain { AXWindowProbe.allWindows(pids: pids) }
+            guard let window = AXWindowProbe.pickCallWindow(from: windows) else { continue }
+            return CallHandle(
+                platformID: id,
+                displayName: "Web call — \(browser.appName)",
+                detail: window.title,
+                activateBundleID: browser.bundleID,
+                browserID: browser.id,
+                windowIndex: nil,
+                tabIndex: nil,
+                axWindowTitle: window.title)
+        }
+        return nil
     }
 
     private func micFallback() -> CallHandle? {
         let micUsers = AudioInputProbe.processesUsingMicrophone()
-        for browser in browsers where browser.isChromium {
+        for browser in browsers {
             guard onMain({ ProcessProbe.isAppRunning(bundleID: browser.bundleID) }) else { continue }
             if micUsers.contains(where: { $0.bundleID.hasPrefix(browser.bundleID) }) {
                 return CallHandle(
                     platformID: id,
                     displayName: "Web call — \(browser.appName)",
-                    detail: "window hidden from tab scan (other profile / incognito / PWA)",
+                    detail: "call window could not be identified by title",
                     activateBundleID: browser.bundleID,
                     browserID: browser.id,
                     windowIndex: nil,
@@ -81,7 +107,7 @@ public struct MeetMatcher: PlatformMatcher {
     public func jump(_ handle: CallHandle) -> Bool {
         guard let browser = browsers.first(where: { $0.id == handle.browserID }) else { return false }
         guard let window = handle.windowIndex, let tab = handle.tabIndex else {
-            return jumpToHiddenWindow(browser)
+            return jumpToHiddenWindow(browser, title: handle.axWindowTitle)
         }
         let ok = ScriptRunner.run(Self.jumpScript(for: browser, window: window, tab: tab)) != nil
         // Belt and suspenders for cross-Space / full-screen switching.
@@ -92,15 +118,19 @@ public struct MeetMatcher: PlatformMatcher {
         return ok
     }
 
-    /// Mic-fallback path: the call window is invisible to AppleScript, so
-    /// raise it via Accessibility (which sees all profiles/incognito/PWAs).
-    /// If AX finds nothing (or permission is missing), activating the
-    /// browser still lands the user one window-switch away.
-    private func jumpToHiddenWindow(_ browser: Browser) -> Bool {
+    /// AX path: raise the exact window found at detect time (works across
+    /// all profiles/incognito/PWAs). Re-verify on click means the title is
+    /// at most a moment old. Activate WITHOUT .activateAllWindows so other
+    /// windows don't pile on top of the raised one; if no title was found
+    /// (mic-only fallback), activate everything — one window-switch away.
+    private func jumpToHiddenWindow(_ browser: Browser, title: String?) -> Bool {
         onMain {
             let apps = NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID)
-            let raised = apps.contains { AXWindowProbe.raiseCallWindow(pid: $0.processIdentifier) }
-            let activated = apps.first?.activate(options: [.activateAllWindows]) ?? false
+            guard let title else {
+                return apps.first?.activate(options: [.activateAllWindows]) ?? false
+            }
+            let raised = apps.contains { AXWindowProbe.raise(windowTitled: title, pid: $0.processIdentifier) }
+            let activated = apps.first?.activate(options: []) ?? false
             return raised || activated
         }
     }
