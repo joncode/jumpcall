@@ -1,5 +1,7 @@
 # jumpcall
 
+[![CI](https://github.com/joncode/jumpcall/actions/workflows/ci.yml/badge.svg)](https://github.com/joncode/jumpcall/actions/workflows/ci.yml)
+
 A tiny macOS menu-bar app that knows when you're in a video call and takes you to it.
 
 The icon sits in your menu bar. When a live call is detected it turns green —
@@ -56,6 +58,19 @@ in Firefox can't be found. Use Safari or a Chromium browser for Meet.
 - Tested on Apple Silicon + macOS 26; Intel should work but is untested — reports welcome
 
 ## Install
+
+### Homebrew (recommended)
+
+```bash
+brew install joncode/tap/jumpcall
+jumpcall install
+```
+
+(`jumpcall install` copies the app to `~/Applications`, enables
+launch-at-login, and starts the menu-bar icon. Re-run it after
+`brew upgrade jumpcall`.)
+
+### From source
 
 ```bash
 git clone https://github.com/joncode/jumpcall.git
@@ -120,17 +135,14 @@ bundle id owns the microphone.
 Find your version any of three ways: right-click the menu-bar icon (bottom
 of the menu), `jumpcall version`, or the first line of `jumpcall status`.
 
-To update a source install:
+To update: `brew upgrade jumpcall && jumpcall install` (Homebrew), or
+`git pull && make install` (source). Releases are tagged (`v0.2.0`, …);
+see the changelog on each release.
 
-```bash
-cd jumpcall && git pull && make install
-```
-
-Releases are tagged (`v0.2.0`, …); see the changelog on each release.
-**Heads-up:** unless you've created the `JumpCall Dev` signing certificate
-(see Troubleshooting), updating invalidates the hotkey's Accessibility
-grant — re-grant it after updating. A Homebrew tap (`brew upgrade
-jumpcall`) and an in-app update notice are planned.
+**Heads-up:** updating replaces the binary, which invalidates the hotkey's
+Accessibility grant (ad-hoc signing — see Troubleshooting for the fix and
+the `JumpCall Dev` certificate that makes source-build grants persist).
+An in-app update notice is planned.
 
 ## Troubleshooting
 
