@@ -1,6 +1,6 @@
 import Foundation
 
-protocol PlatformMatcher: Sendable {
+public protocol PlatformMatcher: Sendable {
     var id: String { get }
     var displayName: String { get }
     /// Return a handle if this platform has a live call right now.
@@ -10,10 +10,10 @@ protocol PlatformMatcher: Sendable {
     func jump(_ handle: CallHandle) -> Bool
 }
 
-struct MatcherRegistry: Sendable {
-    let orderedMatchers: [any PlatformMatcher]
+public struct MatcherRegistry: Sendable {
+    public let orderedMatchers: [any PlatformMatcher]
 
-    init(config: Config) {
+    public init(config: Config) {
         let browsers = config.browsers.compactMap { Browser.known[$0.lowercased()] }
         var entries: [(priority: Int, matcher: any PlatformMatcher)] = []
         for platform in config.platforms where platform.enabled {

@@ -1,16 +1,16 @@
 import AppKit
 import Foundation
 
-struct Browser: Sendable {
-    let id: String
-    let appName: String
-    let bundleID: String
-    let isChromium: Bool
+public struct Browser: Sendable {
+    public let id: String
+    public let appName: String
+    public let bundleID: String
+    public let isChromium: Bool
 
     /// Browsers jumpcall knows how to script. Chromium-family browsers all
     /// share Chrome's AppleScript dictionary. Firefox is absent because it
     /// has no AppleScript tab access at all — documented limitation.
-    static let known: [String: Browser] = [
+    public static let known: [String: Browser] = [
         "safari": Browser(id: "safari", appName: "Safari", bundleID: "com.apple.Safari", isChromium: false),
         "chrome": Browser(id: "chrome", appName: "Google Chrome", bundleID: "com.google.Chrome", isChromium: true),
         "brave": Browser(id: "brave", appName: "Brave Browser", bundleID: "com.brave.Browser", isChromium: true),
@@ -19,12 +19,12 @@ struct Browser: Sendable {
     ]
 }
 
-struct MeetMatcher: PlatformMatcher {
-    let id = "meet"
-    let displayName = "Google Meet"
+public struct MeetMatcher: PlatformMatcher {
+    public let id = "meet"
+    public let displayName = "Google Meet"
     let browsers: [Browser]
 
-    func detect() -> CallHandle? {
+    public func detect() -> CallHandle? {
         for browser in browsers {
             // Never send Apple Events to a browser that isn't running —
             // that would launch it (and prompt for permission pointlessly).
@@ -56,7 +56,7 @@ struct MeetMatcher: PlatformMatcher {
         return nil
     }
 
-    func jump(_ handle: CallHandle) -> Bool {
+    public func jump(_ handle: CallHandle) -> Bool {
         guard let browser = browsers.first(where: { $0.id == handle.browserID }),
               let window = handle.windowIndex,
               let tab = handle.tabIndex else { return false }
@@ -72,7 +72,7 @@ struct MeetMatcher: PlatformMatcher {
     /// Real meetings look like meet.google.com/abc-defg-hij (plus optional
     /// query/fragment) or meet.google.com/lookup/<slug> for edu accounts.
     /// The landing page, /new, etc. must NOT count as a live call.
-    static func isMeetingURL(_ url: String) -> Bool {
+    public static func isMeetingURL(_ url: String) -> Bool {
         let code = /https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}([\/?#].*)?/
         let lookup = /https:\/\/meet\.google\.com\/lookup\/[A-Za-z0-9-]+([\/?#].*)?/
         return url.wholeMatch(of: code) != nil || url.wholeMatch(of: lookup) != nil

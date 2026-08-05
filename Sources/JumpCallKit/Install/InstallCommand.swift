@@ -52,8 +52,13 @@ enum InstallCommand {
             installLaunchAgent()
         } else {
             // Login-item registration must run from the *installed* bundle so
-            // SMAppService binds to the right path.
-            runInstalled(["_register"])
+            // SMAppService binds to the right path. SMAppService has known
+            // path/signing sensitivities (Error 78) — fall back to a classic
+            // LaunchAgent automatically rather than leaving no login item.
+            if runInstalled(["_register"]) != 0 {
+                print("SMAppService registration failed — falling back to a LaunchAgent")
+                installLaunchAgent()
+            }
         }
 
         let open = Process()
@@ -107,7 +112,7 @@ enum InstallCommand {
             print("launch at login: enabled")
         } catch {
             print("launch at login failed: \(error.localizedDescription)")
-            print("fallback: jumpcall install --launchagent")
+            exit(1)
         }
     }
 
@@ -177,15 +182,18 @@ enum InstallCommand {
         }
     }
 
-    private static func runInstalled(_ args: [String]) {
+    @discardableResult
+    private static func runInstalled(_ args: [String]) -> Int32 {
         let proc = Process()
         proc.executableURL = installedBinURL
         proc.arguments = args
         do {
             try proc.run()
             proc.waitUntilExit()
+            return proc.terminationStatus
         } catch {
             print("could not run \(installedBinURL.path): \(error.localizedDescription)")
+            return 1
         }
     }
 

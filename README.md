@@ -37,9 +37,25 @@ microphone permission prompt.
 **Firefox limitation:** Firefox has no AppleScript tab access, so Meet calls
 in Firefox can't be found. Use Safari or a Chromium browser for Meet.
 
-## Install
+## Known limitations
 
-Requires macOS 14+ and Swift (Xcode Command Line Tools are enough: `xcode-select --install`).
+- **Non-US keyboard layouts**: the hotkey is matched by physical key position
+  (US-ANSI virtual key codes). On AZERTY/QWERTZ etc. the letter printed on the
+  key may differ — pick a chord that works for your layout in config.json.
+  Layout-aware matching is planned.
+- **Teams / Webex / FaceTime detection is best-effort** until their current
+  bundle identifiers are field-verified — run `jumpcall status --verbose`
+  during a call and open an issue if a platform isn't detected.
+- **Firefox** can't be scanned for Meet tabs (above).
+- No detection of calls in browsers not listed in your `browsers` config.
+
+## Requirements
+
+- macOS 14 (Sonoma) or newer — the mic-usage detection uses a CoreAudio API introduced in 14
+- Swift 6+ toolchain; the Xcode Command Line Tools are enough (`xcode-select --install`), no Xcode needed
+- Tested on Apple Silicon + macOS 26; Intel should work but is untested — reports welcome
+
+## Install
 
 ```bash
 git clone https://github.com/joncode/jumpcall.git
@@ -147,6 +163,21 @@ to JumpCall itself.
 - Homebrew tap
 - Raise Zoom's *meeting window* specifically (not just the app)
 - Live hotkey re-capture UI (today: edit config.json and relaunch)
+
+## Developing
+
+```bash
+make build     # release build (with toolchain preflight)
+make test      # run the test suite (framework-free runner: swift run JumpCallTests)
+make run       # build the bundle and launch it
+make install   # full install to ~/Applications
+```
+
+Layout: `Sources/JumpCallKit` is the library (detection engine, matchers,
+probes, config, UI); `Sources/jumpcall` is a thin executable entry;
+`Tests/TestRunner` is a framework-free assert runner (Command Line Tools
+ship neither XCTest nor a working Swift Testing runner, and jumpcall's
+promise is "no Xcode required"). CI builds and tests every push.
 
 ## License
 

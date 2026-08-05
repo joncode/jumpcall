@@ -3,15 +3,15 @@ import CoreGraphics
 import Foundation
 
 /// A parsed hotkey chord, e.g. "ctrl+alt+cmd+m".
-struct KeySpec: Sendable, Equatable {
-    let keyCode: CGKeyCode
-    let flags: CGEventFlags
-    let display: String
+public struct KeySpec: Sendable, Equatable {
+    public let keyCode: CGKeyCode
+    public let flags: CGEventFlags
+    public let display: String
 
-    static let `default` = KeySpec.parse("ctrl+alt+cmd+m")!
+    public static let `default` = KeySpec.parse("ctrl+alt+cmd+m")!
 
     /// Modifier names + one key name, joined by "+". Case-insensitive.
-    static func parse(_ raw: String) -> KeySpec? {
+    public static func parse(_ raw: String) -> KeySpec? {
         var flags: CGEventFlags = []
         var keyCode: CGKeyCode?
         var keyName = ""

@@ -1,17 +1,17 @@
 import Foundation
 
 /// Everything needed to describe — and later jump to — one live call.
-struct CallHandle: Sendable, Equatable {
-    let platformID: String
-    let displayName: String
+public struct CallHandle: Sendable, Equatable {
+    public let platformID: String
+    public let displayName: String
     /// Extra human-readable context (meeting URL, matched bundle id).
-    let detail: String?
+    public let detail: String?
     /// App to activate when jumping (native platforms).
-    let activateBundleID: String?
+    public let activateBundleID: String?
     /// Browser-based calls only: which browser, and where the tab lives.
-    let browserID: String?
-    let windowIndex: Int?
-    let tabIndex: Int?
+    public let browserID: String?
+    public let windowIndex: Int?
+    public let tabIndex: Int?
 
     init(
         platformID: String,

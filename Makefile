@@ -7,10 +7,24 @@ BUILD_DIR   := .build/release
 BUNDLE      := build/$(APP_NAME).app
 INSTALL_APP := $(HOME)/Applications/$(APP_NAME).app
 
-.PHONY: build bundle run install uninstall clean
+.PHONY: preflight build bundle run install uninstall test clean
 
-build:
+# Friendly failures for the two most common broken-machine cases.
+preflight:
+	@command -v swift >/dev/null 2>&1 || { \
+		echo "error: swift not found."; \
+		echo "install the Xcode Command Line Tools first:  xcode-select --install"; \
+		exit 1; }
+	@swift -version 2>/dev/null | awk '/Swift version/ { split($$4, v, "."); if (v[1] < 6) { \
+		print "error: Swift 6+ required, found " $$4 " — update Command Line Tools (Software Update)"; exit 1 } }'
+	@sw_vers -productVersion | awk -F. '{ if ($$1 < 14) { \
+		print "error: macOS 14 (Sonoma) or newer required, found " $$0; exit 1 } }'
+
+build: preflight
 	swift build -c release
+
+test: preflight
+	swift run -c release JumpCallTests
 
 # Prefer a stable signing identity when one exists: ad-hoc signatures ("-")
 # change identity on every rebuild, which invalidates granted TCC permissions

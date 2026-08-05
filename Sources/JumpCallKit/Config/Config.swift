@@ -1,44 +1,50 @@
 import Foundation
 
-struct PlatformConfig: Codable, Sendable {
-    var id: String
-    var enabled: Bool
-    var priority: Int
+public struct PlatformConfig: Codable, Sendable {
+    public var id: String
+    public var enabled: Bool
+    public var priority: Int
+
+    public init(id: String, enabled: Bool, priority: Int) {
+        self.id = id
+        self.enabled = enabled
+        self.priority = priority
+    }
 }
 
 /// A platform detected purely by "this app is using the microphone".
 /// Users can add their own entries in config.json without touching code.
-struct MicMatcherConfig: Codable, Sendable {
-    var id: String
-    var displayName: String
+public struct MicMatcherConfig: Codable, Sendable {
+    public var id: String
+    public var displayName: String
     /// Match if any mic-using process's bundle id starts with one of these.
-    var bundlePrefixes: [String]
+    public var bundlePrefixes: [String]
     /// App to activate on jump; defaults to the matched process's bundle id.
-    var activateBundleID: String?
+    public var activateBundleID: String?
     /// Guard against system daemons owning the mic: only report a live call
     /// if an app with this bundle-id prefix is actually running.
-    var requireAppRunningPrefix: String?
+    public var requireAppRunningPrefix: String?
 }
 
-struct Config: Codable, Sendable {
-    var pollSeconds: Double
+public struct Config: Codable, Sendable {
+    public var pollSeconds: Double
     /// Probe browsers for Meet tabs only every Nth tick (they cost an
     /// osascript round-trip; everything else is sub-millisecond).
-    var meetPollMultiplier: Int
+    public var meetPollMultiplier: Int
     /// "tint" (green symbol when live) or "badge" (template symbol + green dot).
-    var iconStyle: String
+    public var iconStyle: String
     /// If the icon gets hidden by menu-bar overflow, re-create it once at a
     /// more favorable (further right) position.
-    var autoReposition: Bool
+    public var autoReposition: Bool
     /// Global hotkey chord, e.g. "ctrl+alt+cmd+m". Only consumed while a
     /// call is live — otherwise the key passes through untouched.
-    var hotkey: String
-    var hotkeyEnabled: Bool
-    var browsers: [String]
-    var platforms: [PlatformConfig]
-    var micMatchers: [MicMatcherConfig]
+    public var hotkey: String
+    public var hotkeyEnabled: Bool
+    public var browsers: [String]
+    public var platforms: [PlatformConfig]
+    public var micMatchers: [MicMatcherConfig]
 
-    static let `default` = Config(
+    public static let `default` = Config(
         pollSeconds: 5,
         meetPollMultiplier: 1,
         iconStyle: "tint",
@@ -70,7 +76,7 @@ struct Config: Codable, Sendable {
         ]
     )
 
-    init(
+    public init(
         pollSeconds: Double, meetPollMultiplier: Int, iconStyle: String, autoReposition: Bool,
         hotkey: String, hotkeyEnabled: Bool,
         browsers: [String], platforms: [PlatformConfig], micMatchers: [MicMatcherConfig]
@@ -88,7 +94,7 @@ struct Config: Codable, Sendable {
 
     // Tolerant decoding: any missing key falls back to the default, so old
     // config files keep working as new fields are added.
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = Config.default
         pollSeconds = try c.decodeIfPresent(Double.self, forKey: .pollSeconds) ?? d.pollSeconds

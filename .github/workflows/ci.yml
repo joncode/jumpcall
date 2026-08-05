@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift version
+        run: swift --version
+      - name: Build (release)
+        run: swift build -c release
+      - name: Tests
+        run: swift run -c release JumpCallTests
+      - name: Assemble app bundle
+        run: make bundle
+      - name: Smoke-test CLI
+        run: |
+          build/JumpCall.app/Contents/MacOS/jumpcall version
+          build/JumpCall.app/Contents/MacOS/jumpcall help || true
