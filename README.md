@@ -115,6 +115,23 @@ then add `{"id": "discord", "enabled": true, "priority": 6}` to `platforms`.
 Tip: run `jumpcall status --verbose` *during a call* to see exactly which
 bundle id owns the microphone.
 
+## Versions & updating
+
+Find your version any of three ways: right-click the menu-bar icon (bottom
+of the menu), `jumpcall version`, or the first line of `jumpcall status`.
+
+To update a source install:
+
+```bash
+cd jumpcall && git pull && make install
+```
+
+Releases are tagged (`v0.2.0`, …); see the changelog on each release.
+**Heads-up:** unless you've created the `JumpCall Dev` signing certificate
+(see Troubleshooting), updating invalidates the hotkey's Accessibility
+grant — re-grant it after updating. A Homebrew tap (`brew upgrade
+jumpcall`) and an in-app update notice are planned.
+
 ## Troubleshooting
 
 **Granted Accessibility but `jumpcall status` still says "waiting"?** The
