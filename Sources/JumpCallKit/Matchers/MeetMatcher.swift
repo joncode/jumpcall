@@ -31,6 +31,28 @@ public struct MeetMatcher: PlatformMatcher {
             guard onMain({ ProcessProbe.isAppRunning(bundleID: browser.bundleID) }) else { continue }
             if let handle = probe(browser) { return handle }
         }
+        // The tab scan is blind to other Chrome profiles, incognito windows,
+        // and PWAs (Chrome hides them from AppleScript). But if a browser is
+        // actively using the microphone, there IS a live web call somewhere
+        // in it — report it, and let jump() find the window via AX instead.
+        return micFallback()
+    }
+
+    private func micFallback() -> CallHandle? {
+        let micUsers = AudioInputProbe.processesUsingMicrophone()
+        for browser in browsers where browser.isChromium {
+            guard onMain({ ProcessProbe.isAppRunning(bundleID: browser.bundleID) }) else { continue }
+            if micUsers.contains(where: { $0.bundleID.hasPrefix(browser.bundleID) }) {
+                return CallHandle(
+                    platformID: id,
+                    displayName: "Web call — \(browser.appName)",
+                    detail: "window hidden from tab scan (other profile / incognito / PWA)",
+                    activateBundleID: browser.bundleID,
+                    browserID: browser.id,
+                    windowIndex: nil,
+                    tabIndex: nil)
+            }
+        }
         return nil
     }
 
@@ -57,9 +79,10 @@ public struct MeetMatcher: PlatformMatcher {
     }
 
     public func jump(_ handle: CallHandle) -> Bool {
-        guard let browser = browsers.first(where: { $0.id == handle.browserID }),
-              let window = handle.windowIndex,
-              let tab = handle.tabIndex else { return false }
+        guard let browser = browsers.first(where: { $0.id == handle.browserID }) else { return false }
+        guard let window = handle.windowIndex, let tab = handle.tabIndex else {
+            return jumpToHiddenWindow(browser)
+        }
         let ok = ScriptRunner.run(Self.jumpScript(for: browser, window: window, tab: tab)) != nil
         // Belt and suspenders for cross-Space / full-screen switching.
         onMain {
@@ -67,6 +90,19 @@ public struct MeetMatcher: PlatformMatcher {
                 .activate(options: [.activateAllWindows])
         }
         return ok
+    }
+
+    /// Mic-fallback path: the call window is invisible to AppleScript, so
+    /// raise it via Accessibility (which sees all profiles/incognito/PWAs).
+    /// If AX finds nothing (or permission is missing), activating the
+    /// browser still lands the user one window-switch away.
+    private func jumpToHiddenWindow(_ browser: Browser) -> Bool {
+        onMain {
+            let apps = NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID)
+            let raised = apps.contains { AXWindowProbe.raiseCallWindow(pid: $0.processIdentifier) }
+            let activated = apps.first?.activate(options: [.activateAllWindows]) ?? false
+            return raised || activated
+        }
     }
 
     /// Real meetings look like meet.google.com/abc-defg-hij (plus optional

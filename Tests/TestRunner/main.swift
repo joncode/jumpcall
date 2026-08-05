@@ -151,11 +151,36 @@ var failed = 0
         "unknown platform without mic matcher ignored")
 }
 
+
+// MARK: - AX window title heuristics
+
+@MainActor func axTitleTests() {
+    let calls = [
+        "Meet – abc-defg-hij – Google Chrome",
+        "abc-defg-hij – Meet",
+        "(3) Standup | Microsoft Teams | Company – Google Chrome",
+        "Webex Meeting – Google Chrome",
+    ]
+    for t in calls {
+        expect(AXWindowProbe.titleLooksLikeCall(t), "call title: \(t)")
+    }
+    let notCalls = [
+        "Meeting notes – Google Docs – Google Chrome",
+        "[QA] Aoraki",
+        "Zoom pricing – Google Chrome",
+        "Inbox – you@example.com – Gmail",
+    ]
+    for t in notCalls {
+        expect(!AXWindowProbe.titleLooksLikeCall(t), "non-call title: \(t)")
+    }
+}
+
 // MARK: - Run
 
 keySpecTests()
 meetURLTests()
 configTests()
+axTitleTests()
 
 print("\(passed) passed, \(failed) failed")
 exit(failed == 0 ? 0 : 1)
