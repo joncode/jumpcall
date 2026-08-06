@@ -28,6 +28,7 @@ you plainly whether the icon is currently visible.
 |---|---|---|
 | Zoom | meeting helper process (`CptHost`) | none |
 | Google Meet | tab scan in Safari / Chrome / Brave (Edge & Arc supported in config) | Automation, one prompt per browser |
+| Web calls the tab scan can't see | mic-usage signal + window-title scan across **all** browser windows | none / Accessibility |
 | Microsoft Teams | app is actively using the microphone | none |
 | Webex | app is actively using the microphone | none |
 | FaceTime | call pipeline is actively using the microphone | none |
@@ -36,8 +37,31 @@ The microphone detection reads CoreAudio *metadata* ("which processes have
 live audio input right now") — it never records anything and triggers no
 microphone permission prompt.
 
+## The switcher — how jumping finds the right window
+
+Clicking the icon (or pressing the hotkey) re-verifies the call and then
+picks the most precise jump available:
+
+1. **Exact tab** — if the call was found by the tab scan, the browser is told
+   to select that tab and front that window (AppleScript).
+2. **Exact window, any profile** — browsers hide some windows from their
+   scripting API: **other Chrome profiles, incognito windows, and PWAs are
+   invisible to the tab scan**. jumpcall is profile-agnostic here: it
+   enumerates *every open window* of every running configured browser
+   through the Accessibility API (which sees them all, uniformly), scores
+   titles — a Meet meeting-code beats a platform marker like "Microsoft
+   Teams", bigger window breaks ties — and raises exactly the winning
+   window, un-minimizing it if needed.
+3. **The browser itself** — if a browser is holding the microphone but no
+   window title gives the call away, jumpcall still reports the live call
+   and fronts the browser: worst case you're one window-switch away.
+
+Native apps (Zoom, Teams, Webex, FaceTime) are simply activated — macOS
+brings them across Spaces and full-screen apps on its own.
+
 **Firefox limitation:** Firefox has no AppleScript tab access, so Meet calls
-in Firefox can't be found. Use Safari or a Chromium browser for Meet.
+in Firefox can't be found by the tab scan. Use Safari or a Chromium browser
+for Meet.
 
 ## Known limitations
 
@@ -50,6 +74,10 @@ in Firefox can't be found. Use Safari or a Chromium browser for Meet.
   during a call and open an issue if a platform isn't detected.
 - **Firefox** can't be scanned for Meet tabs (above).
 - No detection of calls in browsers not listed in your `browsers` config.
+- The cross-profile window switcher matches on window *titles*; if the call
+  tab isn't the active tab of its window (so the title doesn't mention the
+  call), jumpcall falls back to fronting the browser rather than the exact
+  window.
 
 ## Requirements
 
@@ -179,13 +207,14 @@ tccutil reset AppleEvents io.github.joncode.jumpcall   # optional: clear permiss
 
 ## How it works
 
-A 5-second poll on a background queue runs three cheap probes: a process-list
+A 5-second poll on a background queue runs four cheap probes: a process-list
 scan (Zoom's `CptHost`), a CoreAudio process-object read (mic usage for
-Teams/Webex/FaceTime), and — only when a configured browser is running — an
-`osascript` tab enumeration for Meet. Clicking the icon re-verifies before
-jumping, so a call that ended seconds ago never gets a stale jump. Ships as a
-real `.app` bundle (assembled by `make`, no Xcode) so TCC permissions attach
-to JumpCall itself.
+Teams/Webex/FaceTime and the web-call fallback), an Accessibility window-title
+scan across all open browser windows (the profile-agnostic switcher), and —
+only when a configured browser is running — an `osascript` tab enumeration
+for Meet. Clicking the icon re-verifies before jumping, so a call that ended
+seconds ago never gets a stale jump. Ships as a real `.app` bundle (assembled
+by `make`, no Xcode) so TCC permissions attach to JumpCall itself.
 
 ## Roadmap
 
