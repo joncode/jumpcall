@@ -28,7 +28,11 @@ public enum AXWindowProbe {
 
     /// 2 = contains a Meet meeting code (strongest), 1 = platform marker, 0 = no.
     public static func titleMatchStrength(_ title: String) -> Int {
-        if title.contains(/[a-z]{3}-[a-z]{4}-[a-z]{3}/) { return 2 }
+        let meetCodePattern = "[a-z]{3}-[a-z]{4}-[a-z]{3}"
+        if let regex = try? NSRegularExpression(pattern: meetCodePattern),
+           regex.firstMatch(in: title, options: [], range: NSRange(title.startIndex..., in: title)) != nil {
+            return 2
+        }
         let markers = [
             "Meet – ", "Meet - ", "– Meet", "- Meet",
             "Microsoft Teams", "Webex", "Zoom Meeting",

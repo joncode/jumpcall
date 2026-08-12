@@ -28,11 +28,18 @@ public enum JumpCallMain {
         }
     }
 
+    // NSApplication.delegate is weak; without this, ARC is free to release
+    // the delegate (and everything it owns, including the status item) as
+    // soon as its last use — the assignment below — passes.
+    @MainActor
+    private static var delegate: AppDelegate?
+
     @MainActor
     private static func runMenuBarApp() {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
         let delegate = AppDelegate()
+        self.delegate = delegate
         app.delegate = delegate
         app.run()
     }

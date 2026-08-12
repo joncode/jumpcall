@@ -139,9 +139,18 @@ public struct MeetMatcher: PlatformMatcher {
     /// query/fragment) or meet.google.com/lookup/<slug> for edu accounts.
     /// The landing page, /new, etc. must NOT count as a live call.
     public static func isMeetingURL(_ url: String) -> Bool {
-        let code = /https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}([\/?#].*)?/
-        let lookup = /https:\/\/meet\.google\.com\/lookup\/[A-Za-z0-9-]+([\/?#].*)?/
-        return url.wholeMatch(of: code) != nil || url.wholeMatch(of: lookup) != nil
+        let patterns = [
+            "https://meet\\.google\\.com/[a-z]{3}-[a-z]{4}-[a-z]{3}([/?#].*)?",
+            "https://meet\\.google\\.com/lookup/[A-Za-z0-9-]+([/?#].*)?",
+        ]
+
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let _ = regex.firstMatch(in: url, options: [], range: NSRange(url.startIndex..., in: url)) {
+                return true
+            }
+        }
+        return false
     }
 
     static func listScript(for browser: Browser) -> String {

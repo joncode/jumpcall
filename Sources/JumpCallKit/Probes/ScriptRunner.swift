@@ -1,5 +1,11 @@
 import Foundation
 
+private final class ScriptRunnerSemaphore: @unchecked Sendable {
+    let semaphore = DispatchSemaphore(value: 0)
+    func signal() { semaphore.signal() }
+    func wait(timeout: DispatchTime) -> DispatchTimeoutResult { semaphore.wait(timeout: timeout) }
+}
+
 /// Runs AppleScript via /usr/bin/osascript as a child process.
 ///
 /// Why not NSAppleScript: it is documented main-thread-only, has no timeout,
@@ -15,7 +21,7 @@ enum ScriptRunner {
         let out = Pipe()
         proc.standardOutput = out
         proc.standardError = Pipe() // discard; a denied Automation prompt is not our stdout
-        let done = DispatchSemaphore(value: 0)
+        let done = ScriptRunnerSemaphore()
         proc.terminationHandler = { _ in done.signal() }
         do {
             try proc.run()
