@@ -32,12 +32,20 @@ public enum JumpCallMain {
         }
     }
 
+    // NSApplication.delegate is a weak reference: without a strong ref of
+    // our own, ARC is free to release the delegate right after the
+    // assignment (optimization-dependent), leaving a menu-bar app that
+    // launches and silently does nothing.
+    @MainActor
+    private static var delegate: AppDelegate?
+
     @MainActor
     private static func runMenuBarApp() {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
-        let delegate = AppDelegate()
-        app.delegate = delegate
+        let appDelegate = AppDelegate()
+        delegate = appDelegate
+        app.delegate = appDelegate
         app.run()
     }
 }
