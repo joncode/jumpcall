@@ -19,6 +19,10 @@ public enum JumpCallMain {
             InstallCommand.unregisterLoginItem()
         case "status":
             CLI.status(verbose: arguments.contains("--verbose") || arguments.contains("-v"))
+        case "config":
+            _ = ConfigStore.load() // materializes defaults on first use
+            print(ConfigStore.configFile.path)
+            NSWorkspace.shared.open(ConfigStore.configFile)
         case "jump":
             CLI.jump()
         case "version", "--version", "-V":

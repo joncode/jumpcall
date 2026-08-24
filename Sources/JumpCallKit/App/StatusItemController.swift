@@ -3,14 +3,15 @@ import AppKit
 @MainActor
 final class StatusItemController: NSObject {
     private var statusItem: NSStatusItem
-    private let engine: DetectionEngine
-    private let config: Config
+    weak var engine: DetectionEngine?
+    private var config: Config
     private(set) var state: CallState = .none
     private var paused = false
     private var rescued = false
     private var diagnosticsTimer: Timer?
 
     var onJumpRequested: (() -> Void)?
+    var onOpenSettings: (() -> Void)?
     var hotkey: HotkeyManager?
 
     // macOS stores a status item's spot as "points from the right edge of the
@@ -21,8 +22,7 @@ final class StatusItemController: NSObject {
     private static let autosave = "JumpCall"
     private static let positionKey = "NSStatusItem Preferred Position \(autosave)"
 
-    init(engine: DetectionEngine, config: Config) {
-        self.engine = engine
+    init(config: Config) {
         self.config = config
         Self.seedPreferredPosition(ifAbsent: 80)
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -53,6 +53,12 @@ final class StatusItemController: NSObject {
         self.state = state
         applyState()
         reportDiagnostics()
+    }
+
+    /// Live config reload (Settings window): refresh icon style etc.
+    func apply(config: Config) {
+        self.config = config
+        applyState()
     }
 
     private func applyState() {
@@ -232,16 +238,10 @@ final class StatusItemController: NSObject {
         pauseItem.target = self
         menu.addItem(pauseItem)
 
-        let loginItem = NSMenuItem(
-            title: "Launch at Login",
-            action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
-        loginItem.target = self
-        loginItem.state = LoginItem.isEnabled ? .on : .off
-        menu.addItem(loginItem)
-
-        let configItem = NSMenuItem(title: "Open Config File", action: #selector(openConfig), keyEquivalent: "")
-        configItem.target = self
-        menu.addItem(configItem)
+        let settingsItem = NSMenuItem(
+            title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
 
         menu.addItem(.separator())
 
@@ -271,23 +271,8 @@ final class StatusItemController: NSObject {
 
     @objc private func togglePause() {
         paused.toggle()
-        engine.setPaused(paused)
+        engine?.setPaused(paused)
         update(state: paused ? .none : state)
-    }
-
-    @objc private func toggleLaunchAtLogin() {
-        do {
-            if LoginItem.isEnabled {
-                try LoginItem.disable()
-            } else {
-                try LoginItem.enable()
-            }
-        } catch {
-            let alert = NSAlert()
-            alert.messageText = "Could not update Login Item"
-            alert.informativeText = "\(error.localizedDescription)\n\nTip: run `jumpcall install` so JumpCall lives in ~/Applications, or use `jumpcall install --launchagent` as a fallback."
-            alert.runModal()
-        }
     }
 
     @objc private func openAccessibilitySettings() {
@@ -297,9 +282,8 @@ final class StatusItemController: NSObject {
         }
     }
 
-    @objc private func openConfig() {
-        _ = ConfigStore.load() // materializes the default file on first use
-        NSWorkspace.shared.open(ConfigStore.configFile)
+    @objc private func openSettings() {
+        onOpenSettings?()
     }
 
     @objc private func quit() {

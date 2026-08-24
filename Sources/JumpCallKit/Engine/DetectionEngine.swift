@@ -34,6 +34,17 @@ final class DetectionEngine: @unchecked Sendable {
         queue.async { self.startTimer() }
     }
 
+    /// Tear down for a config reload: cancel the timer and suppress any
+    /// in-flight tick's callback so a stale state can't overwrite the new
+    /// engine's output.
+    func stop() {
+        queue.async {
+            self.timer?.cancel()
+            self.timer = nil
+            self.userPaused = true
+        }
+    }
+
     func setPaused(_ paused: Bool) {
         queue.async {
             self.userPaused = paused

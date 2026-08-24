@@ -197,6 +197,24 @@ var failed = 0
     expect(AXWindowProbe.pickCallWindow(from: []) == nil, "empty -> nil")
 }
 
+
+@MainActor func chordStringTests() {
+    expectEqual(
+        KeySpec.chordString(keyCode: 46, control: true, option: true, shift: false, command: true),
+        "ctrl+alt+cmd+m", "chord string round-trips the default")
+    expectEqual(
+        KeySpec.chordString(keyCode: 96, control: false, option: false, shift: true, command: true),
+        "shift+cmd+f5", "chord string with shift+cmd")
+    expect(KeySpec.chordString(keyCode: 9999, control: true, option: false, shift: false, command: false) == nil,
+        "unknown keycode -> nil")
+    // Everything chordString emits must parse back.
+    if let chord = KeySpec.chordString(keyCode: 38, control: true, option: true, shift: true, command: true, fn: true) {
+        expect(KeySpec.parse(chord) != nil, "emitted chord parses: \(chord)")
+    } else {
+        failed += 1; print("FAIL  chordString returned nil for full-modifier j")
+    }
+}
+
 // MARK: - Run
 
 keySpecTests()
@@ -204,6 +222,7 @@ meetURLTests()
 configTests()
 axTitleTests()
 axPickTests()
+chordStringTests()
 
 print("\(passed) passed, \(failed) failed")
 exit(failed == 0 ? 0 : 1)

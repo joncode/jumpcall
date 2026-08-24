@@ -1,6 +1,6 @@
 import Foundation
 
-public struct PlatformConfig: Codable, Sendable {
+public struct PlatformConfig: Codable, Sendable, Equatable {
     public var id: String
     public var enabled: Bool
     public var priority: Int
@@ -14,7 +14,7 @@ public struct PlatformConfig: Codable, Sendable {
 
 /// A platform detected purely by "this app is using the microphone".
 /// Users can add their own entries in config.json without touching code.
-public struct MicMatcherConfig: Codable, Sendable {
+public struct MicMatcherConfig: Codable, Sendable, Equatable {
     public var id: String
     public var displayName: String
     /// Match if any mic-using process's bundle id starts with one of these.
@@ -26,7 +26,7 @@ public struct MicMatcherConfig: Codable, Sendable {
     public var requireAppRunningPrefix: String?
 }
 
-public struct Config: Codable, Sendable {
+public struct Config: Codable, Sendable, Equatable {
     public var pollSeconds: Double
     /// Probe browsers for Meet tabs only every Nth tick (they cost an
     /// osascript round-trip; everything else is sub-millisecond).

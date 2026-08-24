@@ -129,6 +129,17 @@ jumpcall jump         one-shot: find the live call and focus it
 to your *terminal app* — that's a macOS rule (TCC blames the responsible
 process). Normal menu-bar usage attributes them to JumpCall.
 
+## Settings
+
+Right-click the menu-bar icon → **Settings…** for everything day-to-day:
+
+- **Hotkey** — click the shortcut field and press your chord; applies instantly
+- **Call apps** — enable/disable platforms, drag priority, pick Meet browsers,
+  and **Add Call App…**: start a call in any app and JumpCall spots it the
+  moment it uses the microphone (or pick the app manually) — no config editing
+- **General** — launch at login, icon style; Advanced holds poll rate,
+  auto-reposition, and the config-file escape hatch
+
 ## Configuration
 
 `~/.config/jumpcall/config.json` (created on first run; see

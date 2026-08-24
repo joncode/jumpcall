@@ -39,6 +39,29 @@ public struct KeySpec: Sendable, Equatable {
         return KeySpec(keyCode: keyCode, flags: flags, display: display)
     }
 
+    /// Reverse of `keyCodes`, for displaying/recording chords.
+    public static func keyName(for code: CGKeyCode) -> String? {
+        keyNames[code]
+    }
+
+    /// Build a config-file chord string from recorder input. Pure; testable.
+    public static func chordString(
+        keyCode: CGKeyCode, control: Bool, option: Bool, shift: Bool, command: Bool, fn: Bool = false
+    ) -> String? {
+        guard let key = keyName(for: keyCode) else { return nil }
+        var parts: [String] = []
+        if control { parts.append("ctrl") }
+        if option { parts.append("alt") }
+        if shift { parts.append("shift") }
+        if command { parts.append("cmd") }
+        if fn { parts.append("fn") }
+        parts.append(key)
+        return parts.joined(separator: "+")
+    }
+
+    private static let keyNames: [CGKeyCode: String] =
+        Dictionary(uniqueKeysWithValues: keyCodes.map { ($1, $0) })
+
     /// US-ANSI virtual key codes (kVK_ANSI_*).
     static let keyCodes: [String: CGKeyCode] = [
         "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9,

@@ -107,11 +107,14 @@ enum CLI {
                 --purge         also delete ~/.config/jumpcall
           jumpcall status       show config + what each platform detector sees
                 --verbose, -v   also dump CoreAudio mic-usage per process
+          jumpcall config       print the config path and open the file
           jumpcall jump         one-shot: find the live call and focus it
           jumpcall version      print version
 
         detects: Zoom, Google Meet (Safari/Chrome/Brave tabs), Microsoft Teams,
-        Webex, FaceTime. Config: ~/.config/jumpcall/config.json
+        Webex, FaceTime — plus any app you add in Settings.
+        Settings: right-click the menu-bar icon → Settings…
+        Config file (power users): ~/.config/jumpcall/config.json
         """)
     }
 }
