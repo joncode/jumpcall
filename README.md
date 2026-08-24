@@ -10,10 +10,12 @@ were buried in. The Zoom meeting window comes to the front; a Google Meet
 jumps to the *exact browser tab*, in the right window, in the right browser.
 No live call? The click just shows a small menu.
 
-There's also a **global hotkey — ⌃⌥⌘M by default** — with a pass-through
-contract: while a call is live, the chord jumps you to it from anywhere;
-when no call is live, the chord is not consumed at all and behaves exactly
-as if jumpcall didn't exist. The hotkey needs macOS's Accessibility
+There's also a **global hotkey — ⌃⌥⌘M by default** — and it's a
+**boomerang**: while a call is live, press it anywhere and you're in the
+call; press it again *while looking at the call* and you bounce straight
+back to whatever you were doing before — answer the "you're on mute",
+return to your notes, one key both ways. When no call is live, the chord
+is not consumed at all and behaves exactly as if jumpcall didn't exist. The hotkey needs macOS's Accessibility
 permission (one grant, prompted on first launch); decline it and everything
 else keeps working. And because crowded menu bars silently hide status
 icons (mid-call is the worst moment: the mic indicator and the call app's

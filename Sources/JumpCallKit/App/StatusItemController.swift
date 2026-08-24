@@ -224,7 +224,7 @@ final class StatusItemController: NSObject {
         if let hotkey {
             if hotkey.isActive {
                 menu.addItem(NSMenuItem(
-                    title: "Hotkey \(hotkey.spec.display): on (when a call is live)",
+                    title: "Hotkey \(hotkey.spec.display): jump to call ⇄ back again",
                     action: nil, keyEquivalent: ""))
             } else {
                 let item = NSMenuItem(

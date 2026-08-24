@@ -65,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 spec: spec,
                 isLive: { engine.cachedState.isLive },
                 onTrigger: {
-                    Task { @MainActor in coordinator.jumpToLiveCall() }
+                    Task { @MainActor in coordinator.toggleJumpToLiveCall() }
                 })
             hotkey.startWhenPermitted(promptOnce: !HotkeyManager.hasAccessibilityPermission)
             statusController.hotkey = hotkey

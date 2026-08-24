@@ -67,6 +67,16 @@ public enum AXWindowProbe {
         }
     }
 
+    /// Title of the window that currently has focus in this process, or nil
+    /// (no AX permission, or no focused window).
+    public static func focusedWindowTitle(pid: pid_t) -> String? {
+        let app = AXUIElementCreateApplication(pid)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, kAXFocusedWindowAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXUIElementGetTypeID() else { return nil }
+        return stringAttribute(value as! AXUIElement, kAXTitleAttribute)
+    }
+
     /// Find the window with this exact title again, un-minimize, raise.
     public static func raise(windowTitled title: String, pid: pid_t) -> Bool {
         let app = AXUIElementCreateApplication(pid)
