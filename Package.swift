@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "jumpcall",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v13)],
     targets: [
         .target(
             name: "JumpCallKit",

@@ -81,7 +81,7 @@ for Meet.
 
 ## Requirements
 
-- macOS 14 (Sonoma) or newer — the mic-usage detection uses a CoreAudio API introduced in 14
+- macOS 13 (Ventura) or newer — on macOS 13, mic-usage detection is disabled since it uses a CoreAudio API introduced in 14
 - Swift 6+ toolchain; the Xcode Command Line Tools are enough (`xcode-select --install`), no Xcode needed
 - Tested on Apple Silicon + macOS 26; Intel should work but is untested — reports welcome
 

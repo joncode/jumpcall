@@ -17,8 +17,8 @@ preflight:
 		exit 1; }
 	@swift -version 2>/dev/null | awk '/Swift version/ { split($$4, v, "."); if (v[1] < 6) { \
 		print "error: Swift 6+ required, found " $$4 " — update Command Line Tools (Software Update)"; exit 1 } }'
-	@sw_vers -productVersion | awk -F. '{ if ($$1 < 14) { \
-		print "error: macOS 14 (Sonoma) or newer required, found " $$0; exit 1 } }'
+	@sw_vers -productVersion | awk -F. '{ if ($$1 < 13) { \
+		print "error: macOS 13 (Ventura) or newer required, found " $$0; exit 1 } }'
 
 build: preflight
 	swift build -c release

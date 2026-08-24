@@ -2,17 +2,21 @@ import AppKit
 import Darwin
 import Foundation
 
+@_silgen_name("proc_listallpids")
+func proc_listallpids(_ buffer: UnsafeMutableRawPointer?, _ buffersize: Int32) -> Int32
+
+@_silgen_name("proc_name")
+func proc_name(_ pid: Int32, _ buffer: UnsafeMutableRawPointer?, _ buffersize: UInt32) -> Int32
+
 /// Run a body on the main actor from any thread, synchronously.
 /// AppKit types like NSRunningApplication are main-actor isolated in the
 /// Swift 6 overlay; detection runs on a background queue, so probes hop over.
 @discardableResult
-func onMain<T: Sendable>(_ body: @MainActor () -> T) -> T {
+func onMain<T: Sendable>(_ body: @Sendable () -> T) -> T {
     if Thread.isMainThread {
-        return MainActor.assumeIsolated(body)
+        return body()
     }
-    return DispatchQueue.main.sync {
-        MainActor.assumeIsolated(body)
-    }
+    return DispatchQueue.main.sync { body() }
 }
 
 enum ProcessProbe {
@@ -52,19 +56,16 @@ enum ProcessProbe {
         return String(decoding: bytes, as: UTF8.self)
     }
 
-    @MainActor
     static func runningApp(bundleID: String) -> NSRunningApplication? {
         NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first
     }
 
-    @MainActor
     static func runningApp(bundleIDPrefix: String) -> NSRunningApplication? {
         NSWorkspace.shared.runningApplications.first {
             $0.bundleIdentifier?.hasPrefix(bundleIDPrefix) == true
         }
     }
 
-    @MainActor
     static func isAppRunning(bundleID: String) -> Bool {
         runningApp(bundleID: bundleID) != nil
     }
