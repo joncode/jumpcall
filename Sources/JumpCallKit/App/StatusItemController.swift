@@ -24,7 +24,10 @@ final class StatusItemController: NSObject {
 
     init(config: Config) {
         self.config = config
-        Self.seedPreferredPosition(ifAbsent: 80)
+        // Seed the rightmost third-party slot (macOS reserves the true far
+        // right for system items). Seed-only: once the user ⌘-drags the icon,
+        // their position is final — we never re-assert.
+        Self.seedPreferredPosition(ifAbsent: 8)
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
         configureItem()
@@ -127,7 +130,7 @@ final class StatusItemController: NSObject {
     /// Once per launch, and only when actually hidden.
     private func rescue() {
         NSStatusBar.system.removeStatusItem(statusItem)
-        Self.seedPreferredPosition(force: 40)
+        Self.seedPreferredPosition(force: 8)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         configureItem()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
