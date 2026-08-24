@@ -11,7 +11,12 @@ final class StatusItemController: NSObject {
     private var diagnosticsTimer: Timer?
 
     var onJumpRequested: (() -> Void)?
+    var onPrimaryClick: (() -> Void)?
+    var onReturnRequested: (() -> Void)?
     var onOpenSettings: (() -> Void)?
+    private var lastMouseDown: Date?
+    private var menuOnCallScreen = false
+    private var menuCanReturn = false
     var hotkey: HotkeyManager?
 
     // macOS stores a status item's spot as "points from the right edge of the
@@ -48,7 +53,7 @@ final class StatusItemController: NSObject {
         guard let button = statusItem.button else { return }
         button.target = self
         button.action = #selector(statusItemClicked)
-        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        button.sendAction(on: [.leftMouseDown, .leftMouseUp, .rightMouseUp])
         applyState()
     }
 
@@ -179,14 +184,33 @@ final class StatusItemController: NSObject {
     // MARK: - Click handling
 
     @objc private func statusItemClicked() {
-        let event = NSApp.currentEvent
-        let isRightClick = event?.type == .rightMouseUp
-            || event?.modifierFlags.contains(.control) == true
-        if !isRightClick, state.isLive {
-            onJumpRequested?()
-        } else {
+        guard let event = NSApp.currentEvent else { return }
+        switch event.type {
+        case .leftMouseDown:
+            lastMouseDown = Date()
+        case .leftMouseUp:
+            let held = lastMouseDown.map { Date().timeIntervalSince($0) } ?? 0
+            lastMouseDown = nil
+            let isControlClick = event.modifierFlags.contains(.control)
+            // Press-and-hold always means "show me the menu" — a universal
+            // escape hatch that also covers call-screen detection misses.
+            if isControlClick || held > 0.35 || !state.isLive {
+                showMenu()
+            } else {
+                // Coordinator decides: away from the call → jump;
+                // already on the call screen → menu (with Return item).
+                onPrimaryClick?()
+            }
+        default:
             showMenu()
         }
+    }
+
+    /// Click landed while the user is already looking at the call.
+    func showCallScreenMenu(canReturn: Bool) {
+        menuOnCallScreen = true
+        menuCanReturn = canReturn
+        showMenu()
     }
 
     // The status item has no permanent menu (that would swallow left-clicks);
@@ -195,6 +219,8 @@ final class StatusItemController: NSObject {
         statusItem.menu = buildMenu()
         statusItem.button?.performClick(nil)
         statusItem.menu = nil
+        menuOnCallScreen = false
+        menuCanReturn = false
     }
 
     private func buildMenu() -> NSMenu {
@@ -202,7 +228,9 @@ final class StatusItemController: NSObject {
 
         let title: String
         if case .live(let handle) = state {
-            title = "Live: \(handle.displayName)"
+            title = menuOnCallScreen
+                ? "Live: \(handle.displayName) — you're on it"
+                : "Live: \(handle.displayName)"
         } else {
             title = paused ? "Detection paused" : "No live call detected"
         }
@@ -217,6 +245,13 @@ final class StatusItemController: NSObject {
             let jump = NSMenuItem(title: "Jump to Call", action: #selector(jumpFromMenu), keyEquivalent: "j")
             jump.target = self
             menu.addItem(jump)
+            if menuOnCallScreen, menuCanReturn {
+                let back = NSMenuItem(
+                    title: "Return to Previous App",
+                    action: #selector(returnFromMenu), keyEquivalent: "b")
+                back.target = self
+                menu.addItem(back)
+            }
         }
 
         menu.addItem(.separator())
@@ -270,6 +305,10 @@ final class StatusItemController: NSObject {
 
     @objc private func jumpFromMenu() {
         onJumpRequested?()
+    }
+
+    @objc private func returnFromMenu() {
+        onReturnRequested?()
     }
 
     @objc private func togglePause() {

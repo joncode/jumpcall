@@ -37,6 +37,24 @@ final class JumpCoordinator {
         }
     }
 
+    /// Icon click: away from the call → jump; already looking at the call →
+    /// the menu (with "Return to Previous App") instead of a useless no-op jump.
+    func primaryClick() {
+        engine.verifyNow { [weak self] state in
+            guard let self else { return }
+            switch state {
+            case .live(let handle):
+                if CallScreen.isOn(handle) {
+                    self.statusController?.showCallScreenMenu(canReturn: self.canReturn)
+                } else {
+                    self.perform(handle)
+                }
+            case .none:
+                self.statusController?.showNoCall()
+            }
+        }
+    }
+
     /// Hotkey behavior: away from the call → jump to it; already looking at
     /// it → bounce back to whatever app you were in before the last jump.
     func toggleJumpToLiveCall() {

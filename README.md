@@ -41,8 +41,12 @@ microphone permission prompt.
 
 ## The switcher — how jumping finds the right window
 
-Clicking the icon (or pressing the hotkey) re-verifies the call and then
-picks the most precise jump available:
+The click is context-aware: **away from a live call, clicking jumps to
+it; already looking at the call, clicking opens the menu instead** (with a
+"Return to Previous App" shortcut) — a jump to where you already are helps
+nobody. Press-and-hold the icon (~⅓ second) to always get the menu. Every
+jump re-verifies the call first, then picks the most precise route
+available:
 
 1. **Exact tab** — if the call was found by the tab scan, the browser is told
    to select that tab and front that window (AppleScript).

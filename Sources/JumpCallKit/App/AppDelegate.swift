@@ -56,6 +56,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusController.engine = engine
         statusController.apply(config: config)
         statusController.onJumpRequested = { coordinator.jumpToLiveCall() }
+        statusController.onPrimaryClick = { coordinator.primaryClick() }
+        statusController.onReturnRequested = { coordinator.returnToOrigin() }
         engine.onStateChange = { state in
             statusController.update(state: state)
         }
