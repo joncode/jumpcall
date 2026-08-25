@@ -27,12 +27,19 @@ final class StatusItemController: NSObject {
     private static let autosave = "JumpCall"
     private static let positionKey = "NSStatusItem Preferred Position \(autosave)"
 
+    /// The rightmost third-party slot (macOS reserves the true far right
+    /// for system items).
+    private static let rightmost: Double = 8
+
     init(config: Config) {
         self.config = config
-        // Seed the rightmost third-party slot (macOS reserves the true far
-        // right for system items). Seed-only: once the user ⌘-drags the icon,
-        // their position is final — we never re-assert.
-        Self.seedPreferredPosition(ifAbsent: 8)
+        if config.autoReposition {
+            // Pinned: keep the icon at the rightmost slot, always.
+            Self.seedPreferredPosition(force: Self.rightmost)
+        } else {
+            // Manual: seed a sensible default once; the user's ⌘-drag is final.
+            Self.seedPreferredPosition(ifAbsent: Self.rightmost)
+        }
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         super.init()
         configureItem()
@@ -64,9 +71,28 @@ final class StatusItemController: NSObject {
     }
 
     /// Live config reload (Settings window): refresh icon style etc.
+    /// Checking "keep far right" takes effect immediately.
     func apply(config: Config) {
         self.config = config
         applyState()
+        enforcePinIfNeeded()
+    }
+
+    /// Pin mode: if anything (a drag, a wake-time re-layout, another app)
+    /// moved the icon off the rightmost slot, snap it back.
+    private func enforcePinIfNeeded() {
+        guard config.autoReposition else { return }
+        let current = UserDefaults.standard.double(forKey: Self.positionKey)
+        if abs(current - Self.rightmost) > 0.5 {
+            repositionRight()
+        }
+    }
+
+    private func repositionRight() {
+        NSStatusBar.system.removeStatusItem(statusItem)
+        Self.seedPreferredPosition(force: Self.rightmost)
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        configureItem()
     }
 
     private func applyState() {
@@ -111,6 +137,7 @@ final class StatusItemController: NSObject {
     }
 
     private func diagnosticsTick() {
+        enforcePinIfNeeded()
         let diag = currentDiagnostics()
         reportDiagnostics(diag)
         if diag.hidden, config.autoReposition, !rescued {
@@ -134,10 +161,7 @@ final class StatusItemController: NSObject {
     /// bar overflows, macOS then hides some other icon instead of ours.
     /// Once per launch, and only when actually hidden.
     private func rescue() {
-        NSStatusBar.system.removeStatusItem(statusItem)
-        Self.seedPreferredPosition(force: 8)
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        configureItem()
+        repositionRight()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             guard let self else { return }
             self.reportDiagnostics()

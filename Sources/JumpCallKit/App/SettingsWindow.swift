@@ -265,7 +265,10 @@ struct SettingsView: View {
                 Stepper(
                     "Check for calls every \(Int(cfg.pollSeconds))s",
                     value: $cfg.pollSeconds, in: 2...30, step: 1)
-                Toggle("Auto-reposition icon if the menu bar hides it", isOn: $cfg.autoReposition)
+                Toggle("Keep icon as far right as possible", isOn: $cfg.autoReposition)
+                Text("Pins the icon at the rightmost slot macOS allows — the last spot hidden when the menu bar fills up. Uncheck to place it yourself with ⌘-drag.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Button("Edit Config File…") {
                     NSWorkspace.shared.open(ConfigStore.configFile)
                 }

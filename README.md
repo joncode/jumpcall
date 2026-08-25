@@ -19,10 +19,11 @@ is not consumed at all and behaves exactly as if jumpcall didn't exist. The hotk
 permission (one grant, prompted on first launch); decline it and everything
 else keeps working. And because crowded menu bars silently hide status
 icons (mid-call is the worst moment: the mic indicator and the call app's
-own icon land right as ours turns green), jumpcall seeds itself a
-favorable right-side position, notices if it gets overflow-hidden, and
-re-creates itself once at a better spot — `jumpcall status` always tells
-you plainly whether the icon is currently visible.
+own icon land right as ours turns green), jumpcall pins itself by default
+at the rightmost slot macOS allows — the last spot hidden on overflow —
+and snaps back if a login or wake re-layout moves it. Prefer to place it
+yourself? Turn off the pin in Settings → Advanced and ⌘-drag it anywhere.
+`jumpcall status` always tells you plainly whether the icon is visible.
 
 ## Detects
 
@@ -144,7 +145,7 @@ Right-click the menu-bar icon → **Settings…** for everything day-to-day:
   and **Add Call App…**: start a call in any app and JumpCall spots it the
   moment it uses the microphone (or pick the app manually) — no config editing
 - **General** — launch at login, icon style; Advanced holds poll rate,
-  auto-reposition, and the config-file escape hatch
+  keep-icon-far-right pinning, and the config-file escape hatch
 
 ## Configuration
 
@@ -155,7 +156,9 @@ Right-click the menu-bar icon → **Settings…** for everything day-to-day:
 - `hotkey` / `hotkeyEnabled` — the chord, e.g. `"ctrl+alt+cmd+m"` (modifiers:
   `cmd`, `ctrl`, `alt`, `shift`, `fn`; keys: letters, digits, `f1`–`f19`,
   `space`, punctuation)
-- `autoReposition` — re-create the icon at a better spot if the menu bar hides it (default true)
+- `autoReposition` — pin the icon at the rightmost menu-bar slot macOS allows
+  (survives login/wake re-layouts and overflow hiding; default true). Turn off
+  to place it yourself with ⌘-drag — your position is then final.
 - `platforms` — enable/disable and priority-order the platforms
 - `browsers` — which browsers to scan for Meet: `safari`, `chrome`, `brave`, `edge`, `arc`
 - `iconStyle` — `tint` (green icon when live) or `badge` (green dot)

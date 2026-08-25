@@ -33,8 +33,9 @@ public struct Config: Codable, Sendable, Equatable {
     public var meetPollMultiplier: Int
     /// "tint" (green symbol when live) or "badge" (template symbol + green dot).
     public var iconStyle: String
-    /// If the icon gets hidden by menu-bar overflow, re-create it once at a
-    /// more favorable (further right) position.
+    /// Pin the icon at the rightmost third-party menu-bar slot (survives
+    /// wake-time re-layouts and overflow hiding). Off = manual placement,
+    /// the user's ⌘-drag is final.
     public var autoReposition: Bool
     /// Global hotkey chord, e.g. "ctrl+alt+cmd+m". Only consumed while a
     /// call is live — otherwise the key passes through untouched.
