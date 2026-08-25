@@ -281,6 +281,11 @@ final class StatusItemController: NSObject {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
+        let githubItem = NSMenuItem(
+            title: "JumpCall on GitHub…", action: #selector(openGitHub), keyEquivalent: "")
+        githubItem.target = self
+        menu.addItem(githubItem)
+
         menu.addItem(.separator())
 
         let quit = NSMenuItem(title: "Quit JumpCall", action: #selector(quit), keyEquivalent: "q")
@@ -326,6 +331,12 @@ final class StatusItemController: NSObject {
 
     @objc private func openSettings() {
         onOpenSettings?()
+    }
+
+    @objc private func openGitHub() {
+        if let url = URL(string: "https://github.com/joncode/jumpcall") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     @objc private func quit() {
