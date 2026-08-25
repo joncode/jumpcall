@@ -242,14 +242,19 @@ final class StatusItemController: NSObject {
                 item.indentationLevel = 1
                 menu.addItem(item)
             }
-            let jump = NSMenuItem(title: "Jump to Call", action: #selector(jumpFromMenu), keyEquivalent: "j")
+            let jump = NSMenuItem(title: "Jump to Call", action: #selector(jumpFromMenu), keyEquivalent: "")
             jump.target = self
+            // Show the REAL global chord (it performs this exact action) —
+            // never a made-up ⌘-shortcut that doesn't work outside the menu.
+            if !menuOnCallScreen { applyHotkeyEquivalent(to: jump) }
             menu.addItem(jump)
             if menuOnCallScreen, menuCanReturn {
                 let back = NSMenuItem(
                     title: "Return to Previous App",
-                    action: #selector(returnFromMenu), keyEquivalent: "b")
+                    action: #selector(returnFromMenu), keyEquivalent: "")
                 back.target = self
+                // From the call screen, the boomerang chord means "return".
+                applyHotkeyEquivalent(to: back)
                 menu.addItem(back)
             }
         }
@@ -304,6 +309,19 @@ final class StatusItemController: NSObject {
         menu.addItem(hint)
 
         return menu
+    }
+
+    /// Label a menu item with the user's actual global hotkey chord.
+    private func applyHotkeyEquivalent(to item: NSMenuItem) {
+        guard let hotkey, hotkey.isActive,
+              let key = KeySpec.keyName(for: hotkey.spec.keyCode), key.count == 1 else { return }
+        item.keyEquivalent = key
+        var mask: NSEvent.ModifierFlags = []
+        if hotkey.spec.flags.contains(.maskControl) { mask.insert(.control) }
+        if hotkey.spec.flags.contains(.maskAlternate) { mask.insert(.option) }
+        if hotkey.spec.flags.contains(.maskShift) { mask.insert(.shift) }
+        if hotkey.spec.flags.contains(.maskCommand) { mask.insert(.command) }
+        item.keyEquivalentModifierMask = mask
     }
 
     // MARK: - Menu actions
