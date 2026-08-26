@@ -78,14 +78,30 @@ final class StatusItemController: NSObject {
         enforcePinIfNeeded()
     }
 
-    /// Pin mode: if anything (a drag, a wake-time re-layout, another app)
-    /// moved the icon off the rightmost slot, snap it back.
+    /// Pin mode: if anything (a drag, a login/wake re-layout, macOS itself)
+    /// moved the icon out of the rightmost band, snap it back. Judged by the
+    /// ACTUAL on-screen position — macOS rewrites the preference on its own
+    /// (it parks unfittable items at the LEFT edge and stores that), so the
+    /// stored value alone can't be trusted. Never fight a full menu bar:
+    /// while the icon is overflow-hidden there is no room to reposition
+    /// into (the one-shot rescue covers that case), and snap-backs are
+    /// rate-limited so a recreate loop is impossible.
+    private var lastPinFix = Date.distantPast
+
     private func enforcePinIfNeeded() {
         guard config.autoReposition else { return }
-        let current = UserDefaults.standard.double(forKey: Self.positionKey)
-        if abs(current - Self.rightmost) > 0.5 {
-            repositionRight()
-        }
+        let pref = UserDefaults.standard.double(forKey: Self.positionKey)
+        let diag = currentDiagnostics()
+        // Anything in the single-digit band IS rightmost (macOS normalizes
+        // our 8 to 0 and back); larger values mean a drag or relocation.
+        let prefDrifted = pref > 20
+        let visiblyMisplaced = !diag.hidden && diag.hasWindow
+            && diag.frame.origin.x < (NSScreen.main.map { $0.frame.width * 0.6 } ?? 1000)
+        guard prefDrifted || visiblyMisplaced else { return }
+        guard !diag.hidden else { return } // no room — repositioning is futile
+        guard Date().timeIntervalSince(lastPinFix) > 300 else { return }
+        lastPinFix = Date()
+        repositionRight()
     }
 
     private func repositionRight() {
