@@ -66,6 +66,11 @@ enum CLI {
         }
         let hidden = icon["hidden"] as? Bool ?? false
         let rescued = icon["rescued"] as? Bool ?? false
+        if let denied = json["automationDenied"] as? [String], !denied.isEmpty {
+            print("⚠ Meet tab scan BLOCKED for: \(denied.joined(separator: ", ")) — the app's browser permission is stale/denied.")
+            print("  Fix: System Settings → Privacy & Security → Automation → JumpCall, or:")
+            print("  tccutil reset AppleEvents io.github.joncode.jumpcall  (then approve the fresh prompts)")
+        }
         if hidden {
             let suffix = rescued ? " — auto-reposition already attempted; free up menu-bar space or try Ice" : ""
             print("menu-bar icon: HIDDEN (menu bar is full; macOS hides overflow icons)\(suffix)")

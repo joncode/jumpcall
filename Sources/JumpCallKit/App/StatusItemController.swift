@@ -203,6 +203,7 @@ final class StatusItemController: NSObject {
             "pid": ProcessInfo.processInfo.processIdentifier,
             "state": stateDescription,
             "hotkey": hotkeyInfo,
+            "automationDenied": AutomationStatus.shared.deniedTargets,
             "icon": [
                 "x": d.frame.origin.x,
                 "y": d.frame.origin.y,
@@ -315,6 +316,15 @@ final class StatusItemController: NSObject {
             }
         }
 
+        let deniedBrowsers = AutomationStatus.shared.deniedTargets
+        if !deniedBrowsers.isEmpty {
+            let warn = NSMenuItem(
+                title: "⚠ Meet tab scan blocked for \(deniedBrowsers.joined(separator: ", ")) — fix…",
+                action: #selector(openAutomationSettings), keyEquivalent: "")
+            warn.target = self
+            menu.addItem(warn)
+        }
+
         let pauseItem = NSMenuItem(
             title: paused ? "Resume Detection" : "Pause Detection",
             action: #selector(togglePause), keyEquivalent: "")
@@ -389,6 +399,12 @@ final class StatusItemController: NSObject {
 
     @objc private func openSettings() {
         onOpenSettings?()
+    }
+
+    @objc private func openAutomationSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     @objc private func openGitHub() {

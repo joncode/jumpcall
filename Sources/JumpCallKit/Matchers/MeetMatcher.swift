@@ -24,8 +24,25 @@ public struct MeetMatcher: PlatformMatcher {
     public let displayName = "Google Meet"
     let browsers: [Browser]
 
+    /// Browsers actively holding the microphone are scanned first: a live
+    /// call always outranks a lobby/landing page open in another browser
+    /// (their URLs are indistinguishable — meet.google.com/xxx-yyyy-zzz is
+    /// the same joined or not, so the mic is the tiebreaker).
+    public static func orderByMicPriority(_ browsers: [Browser], micBundleIDs: [String]) -> [Browser] {
+        func holdsMic(_ b: Browser) -> Bool {
+            micBundleIDs.contains { $0.hasPrefix(b.bundleID) }
+        }
+        return browsers.filter(holdsMic) + browsers.filter { !holdsMic($0) }
+    }
+
+    private var micOrderedBrowsers: [Browser] {
+        Self.orderByMicPriority(
+            browsers,
+            micBundleIDs: AudioInputProbe.processesUsingMicrophone().map(\.bundleID))
+    }
+
     public func detect() -> CallHandle? {
-        for browser in browsers {
+        for browser in micOrderedBrowsers {
             // Never send Apple Events to a browser that isn't running —
             // that would launch it (and prompt for permission pointlessly).
             guard onMain({ ProcessProbe.isAppRunning(bundleID: browser.bundleID) }) else { continue }
@@ -43,7 +60,7 @@ public struct MeetMatcher: PlatformMatcher {
     }
 
     private func axWindowScan() -> CallHandle? {
-        for browser in browsers {
+        for browser in micOrderedBrowsers {
             let pids = onMain {
                 NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID)
                     .map(\.processIdentifier)
@@ -83,7 +100,8 @@ public struct MeetMatcher: PlatformMatcher {
     }
 
     private func probe(_ browser: Browser) -> CallHandle? {
-        guard let output = ScriptRunner.run(Self.listScript(for: browser)),
+        guard let output = ScriptRunner.run(
+                  Self.listScript(for: browser), permissionTarget: browser.appName),
               !output.isEmpty else { return nil }
         for line in output.split(separator: "\n") {
             let parts = line.split(separator: "|", maxSplits: 2)

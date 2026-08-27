@@ -215,6 +215,21 @@ var failed = 0
     }
 }
 
+
+@MainActor func micPriorityTests() {
+    let safari = Browser.known["safari"]!
+    let chrome = Browser.known["chrome"]!
+    let brave = Browser.known["brave"]!
+    let ordered = MeetMatcher.orderByMicPriority(
+        [safari, chrome, brave], micBundleIDs: ["com.google.Chrome.helper"])
+    expectEqual(ordered.map(\.id), ["chrome", "safari", "brave"],
+        "mic-holding browser scanned first")
+    let unchanged = MeetMatcher.orderByMicPriority(
+        [safari, chrome, brave], micBundleIDs: [])
+    expectEqual(unchanged.map(\.id), ["safari", "chrome", "brave"],
+        "no mic: config order preserved")
+}
+
 // MARK: - Run
 
 keySpecTests()
@@ -223,6 +238,7 @@ configTests()
 axTitleTests()
 axPickTests()
 chordStringTests()
+micPriorityTests()
 
 print("\(passed) passed, \(failed) failed")
 exit(failed == 0 ? 0 : 1)
