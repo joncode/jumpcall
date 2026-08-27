@@ -265,8 +265,8 @@ struct SettingsView: View {
                 Stepper(
                     "Check for calls every \(Int(cfg.pollSeconds))s",
                     value: $cfg.pollSeconds, in: 2...30, step: 1)
-                Toggle("Keep icon as far right as possible", isOn: $cfg.autoReposition)
-                Text("Pins the icon at the rightmost slot macOS allows — the last spot hidden when the menu bar fills up. Uncheck to place it yourself with ⌘-drag.")
+                Toggle("Start with the icon at the far right", isOn: $cfg.autoReposition)
+                Text("Places the icon at the rightmost slot macOS allows each time JumpCall starts. While running, the icon is never moved — ⌘-drag it wherever you like (macOS itself may shuffle icons when the menu bar fills during calls).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Button("Edit Config File…") {

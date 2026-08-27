@@ -19,11 +19,12 @@ is not consumed at all and behaves exactly as if jumpcall didn't exist. The hotk
 permission (one grant, prompted on first launch); decline it and everything
 else keeps working. And because crowded menu bars silently hide status
 icons (mid-call is the worst moment: the mic indicator and the call app's
-own icon land right as ours turns green), jumpcall pins itself by default
-at the rightmost slot macOS allows — the last spot hidden on overflow —
-and snaps back if a login or wake re-layout moves it. Prefer to place it
-yourself? Turn off the pin in Settings → Advanced and ⌘-drag it anywhere.
-`jumpcall status` always tells you plainly whether the icon is visible.
+own icon land right as ours turns green), jumpcall starts its icon at the
+rightmost slot macOS allows — the last spot hidden on overflow. While
+running it NEVER moves the icon (macOS punishes runtime repositioning by
+re-inserting items on the left): ⌘-drag it wherever you like, and if the
+bar hides it during a call, the hotkey still works. `jumpcall status`
+always tells you plainly whether the icon is visible.
 
 ## Detects
 
@@ -156,9 +157,9 @@ Right-click the menu-bar icon → **Settings…** for everything day-to-day:
 - `hotkey` / `hotkeyEnabled` — the chord, e.g. `"ctrl+alt+cmd+m"` (modifiers:
   `cmd`, `ctrl`, `alt`, `shift`, `fn`; keys: letters, digits, `f1`–`f19`,
   `space`, punctuation)
-- `autoReposition` — pin the icon at the rightmost menu-bar slot macOS allows
-  (survives login/wake re-layouts and overflow hiding; default true). Turn off
-  to place it yourself with ⌘-drag — your position is then final.
+- `autoReposition` — start the icon at the rightmost menu-bar slot each
+  launch (default true). The running icon is never moved programmatically;
+  ⌘-drag is always respected until the next launch.
 - `platforms` — enable/disable and priority-order the platforms
 - `browsers` — which browsers to scan for Meet: `safari`, `chrome`, `brave`, `edge`, `arc`
 - `iconStyle` — `tint` (green icon when live) or `badge` (green dot)

@@ -7,7 +7,6 @@ final class StatusItemController: NSObject {
     private var config: Config
     private(set) var state: CallState = .none
     private var paused = false
-    private var rescued = false
     private var diagnosticsTimer: Timer?
 
     var onJumpRequested: (() -> Void)?
@@ -33,11 +32,15 @@ final class StatusItemController: NSObject {
 
     init(config: Config) {
         self.config = config
+        // Placement happens ONCE, before the item exists — the only moment
+        // macOS reliably honors a position. jumpcall NEVER moves the item
+        // while running: removing/recreating a status item in a crowded bar
+        // makes macOS insert it at the LEFT of the status area, which is how
+        // every runtime-repositioning scheme eventually plants the icon on
+        // the wrong side at call start/end. Learned the hard way.
         if config.autoReposition {
-            // Pinned: keep the icon at the rightmost slot, always.
             Self.seedPreferredPosition(force: Self.rightmost)
         } else {
-            // Manual: seed a sensible default once; the user's ⌘-drag is final.
             Self.seedPreferredPosition(ifAbsent: Self.rightmost)
         }
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -71,44 +74,15 @@ final class StatusItemController: NSObject {
     }
 
     /// Live config reload (Settings window): refresh icon style etc.
-    /// Checking "keep far right" takes effect immediately.
+    /// Toggling "start at far right" takes effect at the NEXT launch — the
+    /// running item is never touched (see init for why).
     func apply(config: Config) {
+        let pinTurnedOn = config.autoReposition && !self.config.autoReposition
         self.config = config
         applyState()
-        enforcePinIfNeeded()
-    }
-
-    /// Pin mode: if anything (a drag, a login/wake re-layout, macOS itself)
-    /// moved the icon out of the rightmost band, snap it back. Judged by the
-    /// ACTUAL on-screen position — macOS rewrites the preference on its own
-    /// (it parks unfittable items at the LEFT edge and stores that), so the
-    /// stored value alone can't be trusted. Never fight a full menu bar:
-    /// while the icon is overflow-hidden there is no room to reposition
-    /// into (the one-shot rescue covers that case), and snap-backs are
-    /// rate-limited so a recreate loop is impossible.
-    private var lastPinFix = Date.distantPast
-
-    private func enforcePinIfNeeded() {
-        guard config.autoReposition else { return }
-        let pref = UserDefaults.standard.double(forKey: Self.positionKey)
-        let diag = currentDiagnostics()
-        // Anything in the single-digit band IS rightmost (macOS normalizes
-        // our 8 to 0 and back); larger values mean a drag or relocation.
-        let prefDrifted = pref > 20
-        let visiblyMisplaced = !diag.hidden && diag.hasWindow
-            && diag.frame.origin.x < (NSScreen.main.map { $0.frame.width * 0.6 } ?? 1000)
-        guard prefDrifted || visiblyMisplaced else { return }
-        guard !diag.hidden else { return } // no room — repositioning is futile
-        guard Date().timeIntervalSince(lastPinFix) > 300 else { return }
-        lastPinFix = Date()
-        repositionRight()
-    }
-
-    private func repositionRight() {
-        NSStatusBar.system.removeStatusItem(statusItem)
-        Self.seedPreferredPosition(force: Self.rightmost)
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        configureItem()
+        if pinTurnedOn {
+            Self.seedPreferredPosition(force: Self.rightmost)
+        }
     }
 
     private func applyState() {
@@ -153,13 +127,7 @@ final class StatusItemController: NSObject {
     }
 
     private func diagnosticsTick() {
-        enforcePinIfNeeded()
-        let diag = currentDiagnostics()
-        reportDiagnostics(diag)
-        if diag.hidden, config.autoReposition, !rescued {
-            rescued = true
-            rescue()
-        }
+        reportDiagnostics(currentDiagnostics())
     }
 
     private func currentDiagnostics() -> IconDiagnostics {
@@ -171,17 +139,6 @@ final class StatusItemController: NSObject {
         diag.occluded = !window.occlusionState.contains(.visible)
         diag.onScreen = NSScreen.screens.contains { $0.frame.intersects(window.frame) }
         return diag
-    }
-
-    /// Re-create the status item at a further-right position: when the menu
-    /// bar overflows, macOS then hides some other icon instead of ours.
-    /// Once per launch, and only when actually hidden.
-    private func rescue() {
-        repositionRight()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            guard let self else { return }
-            self.reportDiagnostics()
-        }
     }
 
     /// Written for `jumpcall status` (a separate process) to read, so users
@@ -214,7 +171,6 @@ final class StatusItemController: NSObject {
                 "occluded": d.occluded,
                 "onScreen": d.onScreen,
                 "hidden": d.hidden,
-                "rescued": rescued,
                 "preferredPosition": UserDefaults.standard.double(forKey: Self.positionKey),
             ],
         ]

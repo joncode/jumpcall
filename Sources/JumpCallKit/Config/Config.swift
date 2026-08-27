@@ -33,9 +33,9 @@ public struct Config: Codable, Sendable, Equatable {
     public var meetPollMultiplier: Int
     /// "tint" (green symbol when live) or "badge" (template symbol + green dot).
     public var iconStyle: String
-    /// Pin the icon at the rightmost third-party menu-bar slot (survives
-    /// wake-time re-layouts and overflow hiding). Off = manual placement,
-    /// the user's ⌘-drag is final.
+    /// Place the icon at the rightmost third-party slot at each LAUNCH.
+    /// The running item is never moved programmatically — recreating a
+    /// status item in a crowded bar makes macOS insert it on the left.
     public var autoReposition: Bool
     /// Global hotkey chord, e.g. "ctrl+alt+cmd+m". Only consumed while a
     /// call is live — otherwise the key passes through untouched.
