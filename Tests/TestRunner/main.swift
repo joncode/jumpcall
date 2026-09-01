@@ -274,6 +274,23 @@ var failed = 0
     expect(
         InstallCommand.appBundle(containing: tmp.appending(path: "Empty.app")) == nil,
         "bundle without jumpcall binary -> nil")
+
+    // Homebrew-managed detection: the bin/jumpcall -> Cellar symlink is
+    // brew's, a link into ~/Applications-style paths is ours, and a dangling
+    // Cellar link is fair game to replace.
+    expect(InstallCommand.isHomebrewManaged(link: link), "live Cellar symlink is brew-managed")
+    let ours = bin.appending(path: "jumpcall-ours")
+    try! fm.createSymbolicLink(
+        atPath: ours.path,
+        withDestinationPath: macos.appending(path: "jumpcall").path
+            .replacingOccurrences(of: "/Cellar/jumpcall/0.0.0", with: ""))
+    expect(!InstallCommand.isHomebrewManaged(link: ours), "non-Cellar symlink is not brew-managed")
+    let dangling = bin.appending(path: "jumpcall-dangling")
+    try! fm.createSymbolicLink(
+        atPath: dangling.path,
+        withDestinationPath: tmp.appending(path: "Cellar/jumpcall/9.9.9/gone").path)
+    expect(!InstallCommand.isHomebrewManaged(link: dangling), "dangling Cellar symlink is not brew-managed")
+    expect(!InstallCommand.isHomebrewManaged(link: bare), "regular file is not brew-managed")
 }
 
 // MARK: - Run

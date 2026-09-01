@@ -86,7 +86,8 @@ public enum InstallCommand {
         for dir in symlinkDirs() {
             let link = dir.appending(path: "jumpcall")
             if let dest = try? fm.destinationOfSymbolicLink(atPath: link.path),
-               dest.contains("JumpCall.app") {
+               dest.contains("JumpCall.app"),
+               !isHomebrewManaged(link: link) { // brew's link is brew's to remove
                 try? fm.removeItem(at: link)
                 print("removed \(link.path)")
             }
@@ -168,6 +169,17 @@ public enum InstallCommand {
         return nil
     }
 
+    /// True if `link` is a symlink to a live binary inside Homebrew's Cellar.
+    /// Brew owns that link: replacing or removing it makes the next
+    /// `brew upgrade`/`brew link` refuse with "possible conflicting files".
+    public static func isHomebrewManaged(link: URL) -> Bool {
+        let fm = FileManager.default
+        guard let dest = try? fm.destinationOfSymbolicLink(atPath: link.path) else { return false }
+        let target = URL(fileURLWithPath: dest, relativeTo: link.deletingLastPathComponent())
+            .standardizedFileURL
+        return target.path.contains("/Cellar/jumpcall/") && fm.fileExists(atPath: target.path)
+    }
+
     private static func terminateRunningInstances() {
         let me = ProcessInfo.processInfo.processIdentifier
         let others = NSRunningApplication
@@ -208,6 +220,11 @@ public enum InstallCommand {
         if let attrs = try? fm.attributesOfItem(atPath: link.path) {
             guard attrs[.type] as? FileAttributeType == .typeSymbolicLink else {
                 print("note: \(link.path) exists and is not a symlink — leaving it alone")
+                return
+            }
+            if isHomebrewManaged(link: link) {
+                // The Cellar CLI is the same version; brew keeps it current.
+                print("cli: \(link.path) (Homebrew-managed)")
                 return
             }
             try? fm.removeItem(at: link)
