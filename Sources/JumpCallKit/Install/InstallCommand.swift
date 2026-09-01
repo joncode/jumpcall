@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 @MainActor
-enum InstallCommand {
+public enum InstallCommand {
     static let bundleID = "io.github.joncode.jumpcall"
 
     static var installedAppURL: URL {
@@ -66,6 +66,9 @@ enum InstallCommand {
         open.arguments = [installedAppURL.path]
         try? open.run()
         open.waitUntilExit()
+        guard open.terminationStatus == 0 else {
+            fail("could not launch \(installedAppURL.path) — try opening it from Finder")
+        }
         print("JumpCall is running — look for the video icon in your menu bar.")
     }
 
@@ -129,10 +132,40 @@ enum InstallCommand {
 
     private static func sourceBundle(args: [String]) -> URL? {
         if let i = args.firstIndex(of: "--from"), args.indices.contains(i + 1) {
-            return URL(fileURLWithPath: args[i + 1]).absoluteURL
+            guard let bundle = appBundle(containing: URL(fileURLWithPath: args[i + 1]).absoluteURL)
+            else {
+                fail("""
+                --from expects a JumpCall.app bundle (or a path inside one), \
+                got: \(args[i + 1])
+                """)
+            }
+            return bundle
         }
-        let path = Bundle.main.bundlePath
-        return path.hasSuffix(".app") ? URL(fileURLWithPath: path) : nil
+        // Homebrew symlinks /opt/homebrew/bin/jumpcall into the Cellar's
+        // JumpCall.app, so Bundle.main reports /opt/homebrew/bin — resolve
+        // the real executable and walk up to the enclosing bundle instead.
+        let exec = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0]))
+            .absoluteURL
+        return appBundle(containing: exec)
+    }
+
+    /// Resolves `url` — a bundle, a binary inside one, or a symlink to either —
+    /// to the enclosing .app bundle, requiring the jumpcall binary inside it.
+    public static func appBundle(containing url: URL) -> URL? {
+        let fm = FileManager.default
+        var candidate = url.resolvingSymlinksInPath()
+        while candidate.path != "/" {
+            if candidate.pathExtension == "app" {
+                var isDir: ObjCBool = false
+                guard fm.fileExists(atPath: candidate.path, isDirectory: &isDir),
+                      isDir.boolValue,
+                      fm.fileExists(atPath: candidate.appending(path: "Contents/MacOS/jumpcall").path)
+                else { return nil }
+                return candidate
+            }
+            candidate.deleteLastPathComponent()
+        }
+        return nil
     }
 
     private static func terminateRunningInstances() {
@@ -170,7 +203,15 @@ enum InstallCommand {
         }
         guard let dir else { return }
         let link = dir.appending(path: "jumpcall")
-        try? fm.removeItem(at: link)
+        // Only ever replace a symlink. A regular file at this path is not
+        // ours to delete (attributesOfItem does not traverse symlinks).
+        if let attrs = try? fm.attributesOfItem(atPath: link.path) {
+            guard attrs[.type] as? FileAttributeType == .typeSymbolicLink else {
+                print("note: \(link.path) exists and is not a symlink — leaving it alone")
+                return
+            }
+            try? fm.removeItem(at: link)
+        }
         do {
             try fm.createSymbolicLink(atPath: link.path, withDestinationPath: installedBinURL.path)
             print("cli: \(link.path)")
@@ -216,7 +257,9 @@ enum InstallCommand {
             fail("could not write \(launchAgentURL.path): \(error.localizedDescription)")
         }
         launchctl(["bootout", "gui/\(getuid())/\(bundleID)"]) // ignore failures
-        launchctl(["bootstrap", "gui/\(getuid())", launchAgentURL.path])
+        if launchctl(["bootstrap", "gui/\(getuid())", launchAgentURL.path]) != 0 {
+            print("warning: launchctl bootstrap failed — the agent will load at next login")
+        }
         print("launch agent installed: \(launchAgentURL.path)")
     }
 
@@ -227,13 +270,19 @@ enum InstallCommand {
         print("removed \(launchAgentURL.path)")
     }
 
-    private static func launchctl(_ args: [String]) {
+    @discardableResult
+    private static func launchctl(_ args: [String]) -> Int32 {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/bin/launchctl")
         proc.arguments = args
         proc.standardError = Pipe()
-        try? proc.run()
-        proc.waitUntilExit()
+        do {
+            try proc.run()
+            proc.waitUntilExit()
+            return proc.terminationStatus
+        } catch {
+            return 1
+        }
     }
 
     private static func fail(_ message: String) -> Never {

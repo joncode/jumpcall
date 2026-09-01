@@ -230,6 +230,52 @@ var failed = 0
         "no mic: config order preserved")
 }
 
+// MARK: - Install bundle resolution
+
+@MainActor func installBundleTests() {
+    let fm = FileManager.default
+    let tmp = fm.temporaryDirectory.appending(path: "jumpcall-test-\(getpid())")
+    defer { try? fm.removeItem(at: tmp) }
+
+    // A fake Cellar layout: Cellar/jumpcall/0.0.0/JumpCall.app with the binary
+    // inside, and bin/jumpcall symlinked to it — the Homebrew install shape.
+    let app = tmp.appending(path: "Cellar/jumpcall/0.0.0/JumpCall.app")
+    let macos = app.appending(path: "Contents/MacOS")
+    let bin = tmp.appending(path: "bin")
+    try! fm.createDirectory(at: macos, withIntermediateDirectories: true)
+    try! fm.createDirectory(at: bin, withIntermediateDirectories: true)
+    fm.createFile(atPath: macos.appending(path: "jumpcall").path, contents: Data("x".utf8))
+    let link = bin.appending(path: "jumpcall")
+    try! fm.createSymbolicLink(
+        atPath: link.path, withDestinationPath: macos.appending(path: "jumpcall").path)
+
+    let resolvedApp = app.resolvingSymlinksInPath() // /var/folders is a symlink to /private/var
+    expectEqual(
+        InstallCommand.appBundle(containing: link), resolvedApp,
+        "CLI symlink resolves to the enclosing Cellar bundle")
+    expectEqual(
+        InstallCommand.appBundle(containing: app), resolvedApp,
+        "bundle path resolves to itself")
+    expectEqual(
+        InstallCommand.appBundle(containing: macos.appending(path: "jumpcall")), resolvedApp,
+        "binary inside bundle resolves to the bundle")
+    expect(
+        InstallCommand.appBundle(containing: tmp.appending(path: "bin/nonexistent")) == nil,
+        "path outside any bundle -> nil")
+
+    // A bare binary with no bundle around it (--from mistake) must not resolve.
+    let bare = tmp.appending(path: "bare-jumpcall")
+    fm.createFile(atPath: bare.path, contents: Data("x".utf8))
+    expect(InstallCommand.appBundle(containing: bare) == nil, "bare binary -> nil")
+
+    // An .app directory missing the binary must not resolve.
+    let empty = tmp.appending(path: "Empty.app/Contents/MacOS")
+    try! fm.createDirectory(at: empty, withIntermediateDirectories: true)
+    expect(
+        InstallCommand.appBundle(containing: tmp.appending(path: "Empty.app")) == nil,
+        "bundle without jumpcall binary -> nil")
+}
+
 // MARK: - Run
 
 keySpecTests()
@@ -239,6 +285,7 @@ axTitleTests()
 axPickTests()
 chordStringTests()
 micPriorityTests()
+installBundleTests()
 
 print("\(passed) passed, \(failed) failed")
 exit(failed == 0 ? 0 : 1)
