@@ -39,11 +39,12 @@ enum IconArt {
         // charger: torso, wide uppercut arm, trailing arm, knee drive, extended leg
         stroke([(8, 15), (11.8, 8.5)], color: color)
         stroke([(11.3, 9.5), (15.8, 11.2), (19.6, 6.8)], color: color)
-        stroke([(11.4, 10), (5.8, 12.2)], color: color)
+        stroke([(11.4, 10), (8.8, 7.0), (7.4, 3.4)], color: color)  // left arm raised beside head
         stroke([(8, 15), (14.2, 16.8), (12.2, 21.6)], color: color)
         stroke([(8, 15), (3.8, 18.6), (1.6, 22.8)], color: color)
-        dot(12.6, 4.9, 3.0, color: color)   // head
-        dot(20.3, 5.9, 1.9, color: color)   // fist
+        dot(12.9, 4.9, 3.0, color: color)   // head
+        dot(20.3, 5.9, 1.9, color: color)   // right fist
+        dot(7.1, 2.8, 1.7, color: color)    // left hand
         // barrel, airborne, roll ticks
         circle(cx: 25, cy: 21.2, r: 6, width: 3.2, color: color)
         for tick: [(CGFloat, CGFloat)] in [
