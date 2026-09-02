@@ -1,9 +1,9 @@
 import AppKit
 
-/// The jumpcall character: a wide, chunky stick figure charging fist-first
-/// — Jumpman hang-time energy, DK-charge elbow, original geometry — leaping
-/// a barrel seen side-on (a circle with roll ticks) that's airborne above a
-/// corner of hillside. Idle: the figure stands beside the resting barrel
+/// The jumpcall character: a chunky stick figure facing the viewer,
+/// mid-leap — both arms thrown up with bent elbows, legs spread — over a
+/// barrel seen side-on (a circle with roll ticks) airborne above a corner
+/// of hillside. Original geometry throughout. Idle: the figure stands beside the resting barrel
 /// (cross-slat end). Drawn in code as bold bezier strokes on a 32-unit
 /// grid (no assets, no Xcode); tuned for 18pt menu-bar legibility.
 enum IconArt {
@@ -36,15 +36,16 @@ enum IconArt {
     // MARK: - Scenes
 
     private static func drawLive(color: NSColor) {
-        // charger: torso, wide uppercut arm, trailing arm, knee drive, extended leg
-        stroke([(8, 15), (11.8, 8.5)], color: color)
-        stroke([(11.3, 9.5), (15.8, 11.2), (19.6, 6.8)], color: color)
-        stroke([(11.4, 10), (8.8, 7.0), (7.4, 3.4)], color: color)  // left arm raised beside head
-        stroke([(8, 15), (14.2, 16.8), (12.2, 21.6)], color: color)
-        stroke([(8, 15), (3.8, 18.6), (1.6, 22.8)], color: color)
-        dot(12.9, 4.9, 3.0, color: color)   // head
-        dot(20.3, 5.9, 1.9, color: color)   // right fist
-        dot(7.1, 2.8, 1.7, color: color)    // left hand
+        // front-facing mid-leap: both arms up with bent elbows (W shape),
+        // legs spread with bent knees — facing the viewer
+        stroke([(10.5, 8.2), (10.5, 14.5)], color: color)               // torso
+        stroke([(10.5, 9.6), (6.0, 8.2), (4.8, 3.8)], color: color)     // left arm, elbow out
+        stroke([(10.5, 9.6), (15.0, 8.2), (16.2, 3.8)], color: color)   // right arm, elbow out
+        stroke([(10.5, 14.5), (6.4, 17.6), (5.0, 21.8)], color: color)  // left leg spread
+        stroke([(10.5, 14.5), (14.6, 17.6), (13.4, 21.8)], color: color) // right leg spread
+        dot(10.5, 4.6, 3.0, color: color)   // head
+        dot(4.5, 3.2, 1.7, color: color)    // left hand
+        dot(16.5, 3.2, 1.7, color: color)   // right hand
         // barrel, airborne, roll ticks
         circle(cx: 25, cy: 21.2, r: 6, width: 3.2, color: color)
         for tick: [(CGFloat, CGFloat)] in [
