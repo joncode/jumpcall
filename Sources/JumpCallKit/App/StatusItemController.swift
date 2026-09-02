@@ -376,30 +376,11 @@ final class StatusItemController: NSObject {
     // MARK: - Icons
 
     private static func idleImage() -> NSImage? {
-        let image = NSImage(systemSymbolName: "video", accessibilityDescription: "No live call")
-        image?.isTemplate = true
-        return image
+        IconArt.idle()
     }
 
     private static func liveImage(style: String) -> NSImage? {
-        guard style == "badge" else {
-            let image = NSImage(systemSymbolName: "video.fill", accessibilityDescription: "Live call")?
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.systemGreen]))
-            image?.isTemplate = false
-            return image
-        }
-        let size = NSSize(width: 18, height: 18)
-        let image = NSImage(size: size, flipped: false) { rect in
-            if let symbol = NSImage(systemSymbolName: "video", accessibilityDescription: "Live call")?
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.labelColor])) {
-                symbol.draw(in: rect.insetBy(dx: 0, dy: 2))
-            }
-            NSColor.systemGreen.setFill()
-            NSBezierPath(ovalIn: NSRect(x: rect.maxX - 6, y: rect.minY, width: 6, height: 6)).fill()
-            return true
-        }
-        image.isTemplate = false
-        return image
+        IconArt.live(style: style)
     }
 }
 
