@@ -1,8 +1,20 @@
-# jumpcall
+<p align="center">
+  <img src="assets/logo.svg" width="140" alt="the jumpcall jumper — a stick figure mid-leap, arms up">
+</p>
 
-[![CI](https://github.com/joncode/jumpcall/actions/workflows/ci.yml/badge.svg)](https://github.com/joncode/jumpcall/actions/workflows/ci.yml)
+<h1 align="center">jumpcall</h1>
 
-A tiny macOS menu-bar app that knows when you're in a video call and takes you to it.
+<p align="center"><b>Jump to your live video call. One key, both ways.</b></p>
+
+<p align="center">
+  <a href="https://github.com/joncode/jumpcall/actions/workflows/ci.yml"><img src="https://github.com/joncode/jumpcall/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/joncode/jumpcall/releases"><img src="https://img.shields.io/github/v/release/joncode/jumpcall?color=34c759" alt="release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
+</p>
+
+That's the jumper up there — quiet in your menu bar until a call goes
+live, then he leaps, in green. A tiny macOS menu-bar app that knows when
+you're in a video call and takes you to it.
 
 The icon sits in your menu bar. When a live call is detected it turns green —
 **click it and you're in the call**, no matter what window, app, or Space you

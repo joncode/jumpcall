@@ -41,6 +41,8 @@ bundle: build
 	mkdir -p $(BUNDLE)/Contents/MacOS
 	cp $(BUILD_DIR)/$(BIN) $(BUNDLE)/Contents/MacOS/$(BIN)
 	cp Resources/Info.plist $(BUNDLE)/Contents/Info.plist
+	mkdir -p $(BUNDLE)/Contents/Resources
+	cp Resources/AppIcon.icns $(BUNDLE)/Contents/Resources/AppIcon.icns
 	printf 'APPL????' > $(BUNDLE)/Contents/PkgInfo
 	codesign --force --sign "$(SIGN_ID)" --identifier $(BUNDLE_ID) $(BUNDLE)
 	@if [ "$(SIGN_ID)" = "-" ]; then \
