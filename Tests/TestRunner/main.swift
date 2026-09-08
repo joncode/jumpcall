@@ -228,6 +228,18 @@ var failed = 0
         [safari, chrome, brave], micBundleIDs: [])
     expectEqual(unchanged.map(\.id), ["safari", "chrome", "brave"],
         "no mic: config order preserved")
+
+    // Safari's mic capture lives in com.apple.WebKit.GPU — no Safari prefix.
+    let webkitMic = MeetMatcher.orderByMicPriority(
+        [chrome, safari, brave], micBundleIDs: ["com.apple.WebKit.GPU"])
+    expectEqual(webkitMic.map(\.id), ["safari", "chrome", "brave"],
+        "WebKit.GPU mic counts as Safari")
+    expect(MeetMatcher.holdsMic(safari, micBundleIDs: ["com.apple.WebKit.GPU"]),
+        "holdsMic: WebKit.GPU -> safari")
+    expect(!MeetMatcher.holdsMic(chrome, micBundleIDs: ["com.apple.WebKit.GPU"]),
+        "holdsMic: WebKit.GPU is not chrome")
+    expect(MeetMatcher.holdsMic(chrome, micBundleIDs: ["com.google.Chrome.helper"]),
+        "holdsMic: chrome helper -> chrome")
 }
 
 // MARK: - Install bundle resolution

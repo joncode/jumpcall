@@ -62,6 +62,9 @@ enum CLI {
                 print("hotkey: \(hotkey["display"] as? String ?? "?") active (consumed only while a call is live)")
             } else {
                 print("hotkey: \(hotkey["display"] as? String ?? "?") waiting for Accessibility permission (System Settings → Privacy & Security → Accessibility → JumpCall)")
+                print("  Already granted it? The grant goes stale when the app is rebuilt/upgraded, and")
+                print("  re-toggling the old entry never fixes it. Clear it and approve the fresh prompt:")
+                print("  tccutil reset Accessibility io.github.joncode.jumpcall  (then relaunch JumpCall)")
             }
         }
         let hidden = icon["hidden"] as? Bool ?? false
