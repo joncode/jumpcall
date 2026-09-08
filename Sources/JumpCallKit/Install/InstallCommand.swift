@@ -35,7 +35,18 @@ public enum InstallCommand {
         try? fm.createDirectory(
             at: installedAppURL.deletingLastPathComponent(), withIntermediateDirectories: true)
 
+        var binaryChanged = false
         if source.standardizedFileURL.path != installedAppURL.standardizedFileURL.path {
+            // Ad-hoc signatures pin TCC grants to the exact binary (cdhash),
+            // so replacing the binary silently kills the Accessibility grant
+            // behind the hotkey — and re-toggling the stale System Settings
+            // row never revalidates. Detect the upgrade so we can clear it.
+            binaryChanged = {
+                guard let old = try? Data(contentsOf: installedBinURL),
+                      let new = try? Data(contentsOf: source.appending(path: "Contents/MacOS/jumpcall"))
+                else { return false }
+                return old != new
+            }()
             terminateRunningInstances()
             try? fm.removeItem(at: installedAppURL)
             do {
@@ -59,6 +70,10 @@ public enum InstallCommand {
                 print("SMAppService registration failed — falling back to a LaunchAgent")
                 installLaunchAgent()
             }
+        }
+
+        if binaryChanged, ConfigStore.load().hotkeyEnabled {
+            resetStaleAccessibilityGrant()
         }
 
         let open = Process()
@@ -253,6 +268,22 @@ public enum InstallCommand {
             print("could not run \(installedBinURL.path): \(error.localizedDescription)")
             return 1
         }
+    }
+
+    /// The upgraded binary can never satisfy the old grant's cdhash, so the
+    /// hotkey would stay dead no matter how often the user re-toggles the
+    /// (stale) System Settings row. Clearing the row makes the app's fresh
+    /// permission prompt actually mean something.
+    private static func resetStaleAccessibilityGrant() {
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        proc.arguments = ["reset", "Accessibility", bundleID]
+        proc.standardOutput = Pipe()
+        proc.standardError = Pipe()
+        try? proc.run()
+        proc.waitUntilExit()
+        print("hotkey: upgraded binaries invalidate the old Accessibility grant — cleared it;")
+        print("        approve the fresh prompt (or System Settings → Accessibility → JumpCall)")
     }
 
     // MARK: - LaunchAgent fallback

@@ -6,12 +6,27 @@ public struct Browser: Sendable {
     public let appName: String
     public let bundleID: String
     public let isChromium: Bool
+    /// Bundle-ID prefixes whose mic usage counts as this browser's.
+    /// Chromium helpers share the app's prefix, but Safari captures audio in
+    /// com.apple.WebKit.GPU — no com.apple.Safari prefix — so without the
+    /// extra entry Safari's mic state is invisible to mic-priority ordering.
+    public let micBundlePrefixes: [String]
+
+    init(id: String, appName: String, bundleID: String, isChromium: Bool,
+         micBundlePrefixes: [String]? = nil) {
+        self.id = id
+        self.appName = appName
+        self.bundleID = bundleID
+        self.isChromium = isChromium
+        self.micBundlePrefixes = micBundlePrefixes ?? [bundleID]
+    }
 
     /// Browsers jumpcall knows how to script. Chromium-family browsers all
     /// share Chrome's AppleScript dictionary. Firefox is absent because it
     /// has no AppleScript tab access at all — documented limitation.
     public static let known: [String: Browser] = [
-        "safari": Browser(id: "safari", appName: "Safari", bundleID: "com.apple.Safari", isChromium: false),
+        "safari": Browser(id: "safari", appName: "Safari", bundleID: "com.apple.Safari", isChromium: false,
+                          micBundlePrefixes: ["com.apple.Safari", "com.apple.WebKit."]),
         "chrome": Browser(id: "chrome", appName: "Google Chrome", bundleID: "com.google.Chrome", isChromium: true),
         "brave": Browser(id: "brave", appName: "Brave Browser", bundleID: "com.brave.Browser", isChromium: true),
         "edge": Browser(id: "edge", appName: "Microsoft Edge", bundleID: "com.microsoft.edgemac", isChromium: true),
@@ -24,25 +39,38 @@ public struct MeetMatcher: PlatformMatcher {
     public let displayName = "Google Meet"
     let browsers: [Browser]
 
+    /// True when any of `micBundleIDs` belongs to this browser.
+    public static func holdsMic(_ browser: Browser, micBundleIDs: [String]) -> Bool {
+        browser.micBundlePrefixes.contains { prefix in
+            micBundleIDs.contains { $0.hasPrefix(prefix) }
+        }
+    }
+
     /// Browsers actively holding the microphone are scanned first: a live
     /// call always outranks a lobby/landing page open in another browser
     /// (their URLs are indistinguishable — meet.google.com/xxx-yyyy-zzz is
     /// the same joined or not, so the mic is the tiebreaker).
     public static func orderByMicPriority(_ browsers: [Browser], micBundleIDs: [String]) -> [Browser] {
-        func holdsMic(_ b: Browser) -> Bool {
-            micBundleIDs.contains { $0.hasPrefix(b.bundleID) }
-        }
-        return browsers.filter(holdsMic) + browsers.filter { !holdsMic($0) }
-    }
-
-    private var micOrderedBrowsers: [Browser] {
-        Self.orderByMicPriority(
-            browsers,
-            micBundleIDs: AudioInputProbe.processesUsingMicrophone().map(\.bundleID))
+        browsers.filter { holdsMic($0, micBundleIDs: micBundleIDs) }
+            + browsers.filter { !holdsMic($0, micBundleIDs: micBundleIDs) }
     }
 
     public func detect() -> CallHandle? {
-        for browser in micOrderedBrowsers {
+        let micBundleIDs = AudioInputProbe.processesUsingMicrophone().map(\.bundleID)
+        let micHolders = browsers.filter { Self.holdsMic($0, micBundleIDs: micBundleIDs) }
+        let rest = browsers.filter { !Self.holdsMic($0, micBundleIDs: micBundleIDs) }
+
+        // A browser holding the mic is where the call actually is. Exhaust it
+        // completely — tab scan, then the profile-agnostic AX window scan —
+        // before trusting a URL-only hit elsewhere: a lobby/green-room tab in
+        // an idle browser must never outrank the browser transmitting audio
+        // (e.g. the call lives in a Chrome profile AppleScript can't see).
+        for browser in micHolders {
+            guard onMain({ ProcessProbe.isAppRunning(bundleID: browser.bundleID) }) else { continue }
+            if let handle = probe(browser) { return handle }
+            if let handle = axWindowScan(browser) { return handle }
+        }
+        for browser in rest {
             // Never send Apple Events to a browser that isn't running —
             // that would launch it (and prompt for permission pointlessly).
             guard onMain({ ProcessProbe.isAppRunning(bundleID: browser.bundleID) }) else { continue }
@@ -50,42 +78,40 @@ public struct MeetMatcher: PlatformMatcher {
         }
         // The tab scan only sees what the browser's scripting API exposes —
         // Chrome hides other profiles, incognito windows, and PWAs from it.
-        // The Accessibility scan below is profile-agnostic: it checks every
-        // open window of every running browser and matches call-looking
-        // titles directly.
-        if let handle = axWindowScan() { return handle }
+        // The Accessibility scan is profile-agnostic: it checks every open
+        // window of every running browser and matches call-looking titles.
+        for browser in rest {
+            if let handle = axWindowScan(browser) { return handle }
+        }
         // Last resort: a browser is actively using the microphone, so a web
         // call exists even though no window could be identified.
         return micFallback()
     }
 
-    private func axWindowScan() -> CallHandle? {
-        for browser in micOrderedBrowsers {
-            let pids = onMain {
-                NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID)
-                    .map(\.processIdentifier)
-            }
-            guard !pids.isEmpty else { continue }
-            let windows = onMain { AXWindowProbe.allWindows(pids: pids) }
-            guard let window = AXWindowProbe.pickCallWindow(from: windows) else { continue }
-            return CallHandle(
-                platformID: id,
-                displayName: "Web call — \(browser.appName)",
-                detail: window.title,
-                activateBundleID: browser.bundleID,
-                browserID: browser.id,
-                windowIndex: nil,
-                tabIndex: nil,
-                axWindowTitle: window.title)
+    private func axWindowScan(_ browser: Browser) -> CallHandle? {
+        let pids = onMain {
+            NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID)
+                .map(\.processIdentifier)
         }
-        return nil
+        guard !pids.isEmpty else { return nil }
+        let windows = onMain { AXWindowProbe.allWindows(pids: pids) }
+        guard let window = AXWindowProbe.pickCallWindow(from: windows) else { return nil }
+        return CallHandle(
+            platformID: id,
+            displayName: "Web call — \(browser.appName)",
+            detail: window.title,
+            activateBundleID: browser.bundleID,
+            browserID: browser.id,
+            windowIndex: nil,
+            tabIndex: nil,
+            axWindowTitle: window.title)
     }
 
     private func micFallback() -> CallHandle? {
-        let micUsers = AudioInputProbe.processesUsingMicrophone()
+        let micBundleIDs = AudioInputProbe.processesUsingMicrophone().map(\.bundleID)
         for browser in browsers {
             guard onMain({ ProcessProbe.isAppRunning(bundleID: browser.bundleID) }) else { continue }
-            if micUsers.contains(where: { $0.bundleID.hasPrefix(browser.bundleID) }) {
+            if Self.holdsMic(browser, micBundleIDs: micBundleIDs) {
                 return CallHandle(
                     platformID: id,
                     displayName: "Web call — \(browser.appName)",
