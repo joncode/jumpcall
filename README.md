@@ -102,7 +102,8 @@ for Meet.
 ## Requirements
 
 - macOS 14 (Sonoma) or newer — the mic-usage detection uses a CoreAudio API introduced in 14
-- Swift 6+ toolchain; the Xcode Command Line Tools are enough (`xcode-select --install`), no Xcode needed
+- Homebrew install: nothing else — it downloads a prebuilt universal app
+- From source: Swift 6+ toolchain; the Xcode Command Line Tools are enough (`xcode-select --install`), no Xcode needed
 - Tested on Apple Silicon + macOS 26; Intel should work but is untested — reports welcome
 
 ## Install
@@ -117,6 +118,11 @@ jumpcall install
 (`jumpcall install` copies the app to `~/Applications`, enables
 launch-at-login, and starts the menu-bar icon. Re-run it after
 `brew upgrade jumpcall`.)
+
+The formula installs a prebuilt, universal (Apple Silicon + Intel)
+`JumpCall.app` from the GitHub release — nothing compiles, so there's no
+Xcode or Command Line Tools requirement. `brew install --HEAD
+joncode/tap/jumpcall` still builds `main` from source.
 
 ### From source
 
@@ -251,7 +257,6 @@ by `make`, no Xcode) so TCC permissions attach to JumpCall itself.
 
 ## Roadmap
 
-- Homebrew tap
 - Raise Zoom's *meeting window* specifically (not just the app)
 - Live hotkey re-capture UI (today: edit config.json and relaunch)
 
@@ -262,7 +267,21 @@ make build     # release build (with toolchain preflight)
 make test      # run the test suite (framework-free runner: swift run JumpCallTests)
 make run       # build the bundle and launch it
 make install   # full install to ~/Applications
+make dist      # universal release tarball (needs full Xcode; normally CI does this)
 ```
+
+### Releasing
+
+1. Bump `CFBundleShortVersionString` in `Resources/Info.plist`.
+2. Commit, then `git tag vX.Y.Z && git push --tags`.
+
+`.github/workflows/release.yml` then runs the tests, builds the universal
+`JumpCall.app` with `make dist`, attaches
+`jumpcall-X.Y.Z-macos-universal.tar.gz` to the GitHub release, and — if the
+`TAP_GITHUB_TOKEN` secret is set (fine-grained PAT, Contents read/write on
+`joncode/homebrew-tap`) — commits the rendered formula to the tap. Without
+the secret, copy the formula from the job summary into the tap by hand.
+The formula template lives in `packaging/homebrew/jumpcall.rb.in`.
 
 Layout: `Sources/JumpCallKit` is the library (detection engine, matchers,
 probes, config, UI); `Sources/jumpcall` is a thin executable entry;
