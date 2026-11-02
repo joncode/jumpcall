@@ -63,7 +63,10 @@ jump re-verifies the call first, then picks the most precise route
 available:
 
 1. **Exact tab** — if the call was found by the tab scan, the browser is told
-   to select that tab and front that window (AppleScript).
+   to select that tab (AppleScript); then that tab's window is raised, made
+   the main window, and checked for focus through the Accessibility API, so
+   a call hidden behind another same-size browser window, or minimized to
+   the Dock, really does come to the front.
 2. **Exact window, any profile** — browsers hide some windows from their
    scripting API: **other Chrome profiles, incognito windows, and PWAs are
    invisible to the tab scan**. jumpcall is profile-agnostic here: it

@@ -65,6 +65,8 @@ var failed = 0
         "https://meet.google.com/abc-defg-hij?authuser=1",
         "https://meet.google.com/abc-defg-hij#config",
         "https://meet.google.com/abc-defg-hij/",
+        "https://meet.google.com/meet/abc-defg-hij",
+        "https://meet.google.com/meet/iui-xhtk-wep?authuser=0", // field report, Safari, Nov 2026
         "https://meet.google.com/lookup/abc123",
         "https://meet.google.com/lookup/Abc-123?hs=180",
     ]
@@ -75,6 +77,9 @@ var failed = 0
         "https://meet.google.com/",
         "https://meet.google.com/landing",
         "https://meet.google.com/new",
+        "https://meet.google.com/meet/",
+        "https://meet.google.com/meet/new",
+        "https://meet.google.com/meet/ABC-DEFG-HIJ",
         "https://meet.google.com",
         "https://evil.example.com/meet.google.com/abc-defg-hij",
         "https://notmeet.google.com/abc-defg-hij",
@@ -305,6 +310,155 @@ var failed = 0
     expect(!InstallCommand.isHomebrewManaged(link: bare), "regular file is not brew-managed")
 }
 
+
+// MARK: - Jump: bring the call window to the front
+
+let chromePID: pid_t = 100
+let editorPID: pid_t = 200
+let meet = "Meet – abc-defg-hij"
+let inbox = "Inbox – Gmail"
+
+/// The user is working in another app on Space 2; Chrome lives on Space 1.
+@MainActor func desktop(_ windows: [FakeDesktop.Win]) -> FakeDesktop {
+    let d = FakeDesktop()
+    d.bundles = ["com.google.Chrome": [chromePID]]
+    d.z = [FakeDesktop.Win(pid: editorPID, title: "Editor", space: 2)] + windows
+    d.front = editorPID
+    d.visibleSpace = [1: 2]
+    return d
+}
+
+@MainActor func chromeWin(_ title: String, script: Int?, space: Int = 1,
+                          minimized: Bool = false, tabTitle: String? = nil) -> FakeDesktop.Win {
+    FakeDesktop.Win(pid: chromePID, title: title, minimized: minimized, space: space,
+                    scriptIndex: script, tabTitle: tabTitle)
+}
+
+@MainActor func jumpTests() {
+    let chrome = Browser.known["chrome"]!
+
+    // The reported bug: two same-size Chrome windows on one Space, the
+    // Meet window entirely behind the other. Jumping switches to the right
+    // Space but must also put the Meet window on top.
+    do {
+        let d = desktop([chromeWin(inbox, script: 1), chromeWin(meet, script: 2)])
+        _ = BrowserJump.toTab(chrome, window: 2, tab: 1, system: d)
+        expect(d.userSees(meet), "bug: Meet window hidden behind same-size Chrome window is brought to front")
+    }
+
+    // Same layout when Chrome does honor `set index` — must keep working.
+    do {
+        let d = desktop([chromeWin(inbox, script: 1), chromeWin(meet, script: 2)])
+        d.setIndexRaises = true
+        _ = BrowserJump.toTab(chrome, window: 2, tab: 1, system: d)
+        expect(d.userSees(meet), "set index honored: Meet in front")
+    }
+
+    // Covered by a different app's window on the same Space.
+    do {
+        let d = desktop([chromeWin(meet, script: 1)])
+        d.z.insert(FakeDesktop.Win(pid: editorPID, title: "Editor 2", space: 1), at: 0)
+        _ = BrowserJump.toTab(chrome, window: 1, tab: 1, system: d)
+        expect(d.userSees(meet), "Meet covered by another app's window is brought to front")
+    }
+
+    // Three Chrome windows stacked, Meet in the middle.
+    do {
+        let d = desktop([chromeWin("Docs", script: 1), chromeWin(meet, script: 2), chromeWin(inbox, script: 3)])
+        _ = BrowserJump.toTab(chrome, window: 2, tab: 1, system: d)
+        expect(d.userSees(meet), "Meet between two other Chrome windows is brought to front")
+    }
+
+    // Meet window minimized to the Dock.
+    do {
+        let d = desktop([chromeWin(inbox, script: 1), chromeWin(meet, script: 2, minimized: true)])
+        _ = BrowserJump.toTab(chrome, window: 2, tab: 1, system: d)
+        expect(d.userSees(meet), "minimized Meet window is restored and in front")
+    }
+
+    // Meet in its own full-screen Space; another Chrome window is Chrome's
+    // key window on a regular Space.
+    do {
+        let d = desktop([chromeWin(inbox, script: 1), chromeWin(meet, script: 2, space: 5)])
+        _ = BrowserJump.toTab(chrome, window: 2, tab: 1, system: d)
+        expect(d.userSees(meet), "full-screen Meet Space is the one shown")
+        expect(d.visibleSpace[1] == 5, "switched to the full-screen Space, not Chrome's other Space")
+    }
+
+    // Meet on a second display, covered there by another Chrome window.
+    do {
+        let d = desktop([chromeWin(inbox, script: 1, space: 3), chromeWin(meet, script: 2, space: 3)])
+        d.spaceDisplay = [3: 2]
+        d.visibleSpace[2] = 3
+        _ = BrowserJump.toTab(chrome, window: 2, tab: 1, system: d)
+        expect(d.userSees(meet), "Meet on second display brought to front there")
+        expectEqual(d.visibleSpace[1], 2, "main display left alone")
+    }
+
+    // AX window title carries a profile suffix the tab title doesn't.
+    do {
+        let d = desktop([chromeWin(inbox, script: 1),
+                         chromeWin("\(meet) - Work", script: 2, tabTitle: meet)])
+        _ = BrowserJump.toTab(chrome, window: 2, tab: 1, system: d)
+        expect(d.userSees("\(meet) - Work"), "window matched by tab title despite profile suffix")
+    }
+
+    // Activation hands focus back to the old key window once: verify and retry.
+    do {
+        let d = desktop([chromeWin(inbox, script: 1), chromeWin(meet, script: 2)])
+        d.restoreKeyWindow = inbox
+        d.restoreCount = 1
+        let ok = BrowserJump.toTab(chrome, window: 2, tab: 1, system: d)
+        expect(d.userSees(meet), "retry wins after focus bounced back to the covering window")
+        expect(ok, "retry success reported")
+    }
+
+    // Focus never lands on the call: report failure instead of claiming success.
+    do {
+        let d = desktop([chromeWin(inbox, script: 1), chromeWin(meet, script: 2)])
+        d.restoreKeyWindow = inbox
+        d.restoreCount = 99
+        let ok = BrowserJump.toTab(chrome, window: 2, tab: 1, system: d)
+        expect(!ok, "jump reports failure when the call never reaches the front")
+    }
+
+    // No Accessibility permission: can't raise by window, but still bring
+    // Chrome forward on the right app (old behavior), and don't crash.
+    do {
+        let d = desktop([chromeWin(meet, script: 1)])
+        d.accessibilityGranted = false
+        _ = BrowserJump.toTab(chrome, window: 1, tab: 1, system: d)
+        expectEqual(d.front, chromePID, "no AX: Chrome still activated")
+    }
+
+    // AX-only path (other Chrome profile / incognito / PWA): same layout bug.
+    do {
+        let d = desktop([chromeWin(inbox, script: nil), chromeWin(meet, script: nil)])
+        _ = BrowserJump.toWindow(chrome, title: meet, system: d)
+        expect(d.userSees(meet), "AX path: hidden Meet window brought to front")
+    }
+    do {
+        let d = desktop([chromeWin(inbox, script: nil), chromeWin(meet, script: nil, space: 5)])
+        _ = BrowserJump.toWindow(chrome, title: meet, system: d)
+        expect(d.userSees(meet), "AX path: full-screen Meet Space shown")
+    }
+    do {
+        let d = desktop([chromeWin(inbox, script: nil), chromeWin(meet, script: nil)])
+        d.restoreKeyWindow = inbox
+        d.restoreCount = 1
+        _ = BrowserJump.toWindow(chrome, title: meet, system: d)
+        expect(d.userSees(meet), "AX path: retry after focus bounced back")
+    }
+
+    // Mic-only fallback (no title known): activate all Chrome windows.
+    do {
+        let d = desktop([chromeWin(inbox, script: nil), chromeWin(meet, script: nil)])
+        _ = BrowserJump.toWindow(chrome, title: nil, system: d)
+        expect(d.activations.last?.allWindows == true, "no title: activates all browser windows")
+        expectEqual(d.front, chromePID, "no title: browser frontmost")
+    }
+}
+
 // MARK: - Run
 
 keySpecTests()
@@ -315,6 +469,7 @@ axPickTests()
 chordStringTests()
 micPriorityTests()
 installBundleTests()
+jumpTests()
 
 print("\(passed) passed, \(failed) failed")
 exit(failed == 0 ? 0 : 1)

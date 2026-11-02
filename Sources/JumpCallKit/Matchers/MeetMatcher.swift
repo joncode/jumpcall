@@ -38,6 +38,12 @@ public struct MeetMatcher: PlatformMatcher {
     public let id = "meet"
     public let displayName = "Google Meet"
     let browsers: [Browser]
+    let system: any WindowSystem
+
+    public init(browsers: [Browser], system: any WindowSystem = LiveWindowSystem()) {
+        self.browsers = browsers
+        self.system = system
+    }
 
     /// True when any of `micBundleIDs` belongs to this browser.
     public static func holdsMic(_ browser: Browser, micBundleIDs: [String]) -> Bool {
@@ -151,39 +157,17 @@ public struct MeetMatcher: PlatformMatcher {
     public func jump(_ handle: CallHandle) -> Bool {
         guard let browser = browsers.first(where: { $0.id == handle.browserID }) else { return false }
         guard let window = handle.windowIndex, let tab = handle.tabIndex else {
-            return jumpToHiddenWindow(browser, title: handle.axWindowTitle)
+            return BrowserJump.toWindow(browser, title: handle.axWindowTitle, system: system)
         }
-        let ok = ScriptRunner.run(Self.jumpScript(for: browser, window: window, tab: tab)) != nil
-        // Belt and suspenders for cross-Space / full-screen switching.
-        onMain {
-            ProcessProbe.runningApp(bundleID: browser.bundleID)?
-                .activate(options: [.activateAllWindows])
-        }
-        return ok
+        return BrowserJump.toTab(browser, window: window, tab: tab, system: system)
     }
 
-    /// AX path: raise the exact window found at detect time (works across
-    /// all profiles/incognito/PWAs). Re-verify on click means the title is
-    /// at most a moment old. Activate WITHOUT .activateAllWindows so other
-    /// windows don't pile on top of the raised one; if no title was found
-    /// (mic-only fallback), activate everything — one window-switch away.
-    private func jumpToHiddenWindow(_ browser: Browser, title: String?) -> Bool {
-        onMain {
-            let apps = NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID)
-            guard let title else {
-                return apps.first?.activate(options: [.activateAllWindows]) ?? false
-            }
-            let raised = apps.contains { AXWindowProbe.raise(windowTitled: title, pid: $0.processIdentifier) }
-            let activated = apps.first?.activate(options: []) ?? false
-            return raised || activated
-        }
-    }
-
-    /// Real meetings look like meet.google.com/abc-defg-hij (plus optional
-    /// query/fragment) or meet.google.com/lookup/<slug> for edu accounts.
-    /// The landing page, /new, etc. must NOT count as a live call.
+    /// Real meetings look like meet.google.com/abc-defg-hij or, since late
+    /// 2026, meet.google.com/meet/abc-defg-hij (plus optional query/fragment),
+    /// or meet.google.com/lookup/<slug> for edu accounts. The landing page,
+    /// /new, etc. must NOT count as a live call.
     public static func isMeetingURL(_ url: String) -> Bool {
-        let code = /https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}([\/?#].*)?/
+        let code = /https:\/\/meet\.google\.com\/(meet\/)?[a-z]{3}-[a-z]{4}-[a-z]{3}([\/?#].*)?/
         let lookup = /https:\/\/meet\.google\.com\/lookup\/[A-Za-z0-9-]+([\/?#].*)?/
         return url.wholeMatch(of: code) != nil || url.wholeMatch(of: lookup) != nil
     }
@@ -213,21 +197,28 @@ public struct MeetMatcher: PlatformMatcher {
         """
     }
 
+    /// Selects the tab, moves its window first in the browser's list,
+    /// activates, and returns the tab's title so the caller can find and
+    /// raise the real window via Accessibility.
     static func jumpScript(for browser: Browser, window: Int, tab: Int) -> String {
         if browser.isChromium {
             return """
             tell application "\(browser.appName)"
+            	set t to title of tab \(tab) of window \(window)
             	set active tab index of window \(window) to \(tab)
             	set index of window \(window) to 1
             	activate
+            	return t
             end tell
             """
         }
         return """
         tell application "\(browser.appName)"
+        	set t to name of tab \(tab) of window \(window)
         	tell window \(window) to set current tab to tab \(tab)
         	set index of window \(window) to 1
         	activate
+        	return t
         end tell
         """
     }

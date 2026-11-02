@@ -67,6 +67,13 @@ enum CLI {
                 print("  tccutil reset Accessibility io.github.joncode.jumpcall  (then relaunch JumpCall)")
             }
         }
+        if let call = json["call"] as? [String: Any], let name = call["displayName"] as? String {
+            let route = call["route"] as? String ?? "?"
+            let detail = (call["detail"] as? String).flatMap { $0.isEmpty ? nil : " — \($0)" } ?? ""
+            print("app sees: \(name) via \(route)\(detail)")
+        } else {
+            print("app sees: \(json["state"] as? String ?? "?")")
+        }
         let hidden = icon["hidden"] as? Bool ?? false
         if let denied = json["automationDenied"] as? [String], !denied.isEmpty {
             print("⚠ Meet tab scan BLOCKED for: \(denied.joined(separator: ", ")) — the app's browser permission is stale/denied.")

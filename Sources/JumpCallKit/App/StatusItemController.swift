@@ -146,8 +146,18 @@ final class StatusItemController: NSObject {
     private func reportDiagnostics(_ diag: IconDiagnostics? = nil) {
         let d = diag ?? currentDiagnostics()
         let stateDescription: String
+        var call: [String: Any] = [:]
         if case .live(let handle) = state {
             stateDescription = "live: \(handle.displayName)"
+            // Which detection route produced this handle decides how a jump
+            // behaves (exact tab / exact window / whole browser), so expose
+            // it: "Web call — Safari" alone can't tell the AX-window path
+            // from the mic-only fallback.
+            let route = handle.windowIndex != nil ? "tab scan"
+                : handle.axWindowTitle != nil ? "accessibility window"
+                : handle.browserID != nil ? "mic only (window not identified)"
+                : "native app"
+            call = ["displayName": handle.displayName, "route": route, "detail": handle.detail ?? ""]
         } else {
             stateDescription = paused ? "paused" : "none"
         }
@@ -159,6 +169,7 @@ final class StatusItemController: NSObject {
             "updatedAt": ISO8601DateFormatter().string(from: Date()),
             "pid": ProcessInfo.processInfo.processIdentifier,
             "state": stateDescription,
+            "call": call,
             "hotkey": hotkeyInfo,
             "automationDenied": AutomationStatus.shared.deniedTargets,
             "icon": [
