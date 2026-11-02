@@ -1,0 +1,48 @@
+# Template for joncode/homebrew-tap Formula/jumpcall.rb.
+# Rendered by scripts/render-formula.sh (called from .github/workflows/release.yml);
+# @VERSION@ and @SHA256@ are filled in per release.
+class Jumpcall < Formula
+  desc "Jump to your live video call from the macOS menu bar or a hotkey"
+  homepage "https://github.com/joncode/jumpcall"
+  url "https://github.com/joncode/jumpcall/releases/download/v@VERSION@/jumpcall-@VERSION@-macos-universal.tar.gz"
+  version "@VERSION@"
+  sha256 "@SHA256@"
+  license "MIT"
+  head "https://github.com/joncode/jumpcall.git", branch: "main"
+
+  depends_on macos: :sonoma
+
+  def install
+    if build.head?
+      # HEAD still builds from source (needs a current Xcode / CLT).
+      system "swift", "build", "-c", "release", "--disable-sandbox"
+      app = buildpath/"JumpCall.app"
+      (app/"Contents/MacOS").mkpath
+      (app/"Contents/Resources").mkpath
+      cp ".build/release/jumpcall", app/"Contents/MacOS/jumpcall"
+      cp "Resources/Info.plist", app/"Contents/Info.plist"
+      cp "Resources/AppIcon.icns", app/"Contents/Resources/AppIcon.icns"
+      (app/"Contents/PkgInfo").write "APPL????"
+      system "codesign", "--force", "--sign", "-",
+             "--identifier", "io.github.joncode.jumpcall", app
+    end
+    # Releases ship a prebuilt, ad-hoc-signed universal JumpCall.app:
+    # nothing is compiled, so no Xcode is required.
+    prefix.install "JumpCall.app"
+    bin.install_symlink prefix/"JumpCall.app/Contents/MacOS/jumpcall"
+  end
+
+  def caveats
+    <<~EOS
+      To finish setup (copies the app to ~/Applications, enables
+      launch-at-login, and starts the menu-bar icon):
+        jumpcall install
+
+      Re-run "jumpcall install" after every "brew upgrade jumpcall".
+    EOS
+  end
+
+  test do
+    assert_match "jumpcall", shell_output("#{bin}/jumpcall version")
+  end
+end

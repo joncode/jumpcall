@@ -1,0 +1,108 @@
+name: Release
+
+# Builds the prebuilt universal JumpCall.app that the Homebrew formula installs,
+# so `brew install joncode/tap/jumpcall` never compiles (no Xcode needed).
+#
+#   tag push v*   → build, attach tarball to the GitHub release, bump the tap
+#   pull request  → build only (dry run), tarball uploaded as a workflow artifact
+#
+# Tap bump needs a TAP_GITHUB_TOKEN secret: a fine-grained PAT with
+# "Contents: read and write" on joncode/homebrew-tap. Without it the job
+# still publishes the release and prints the formula to the job summary.
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "Makefile"
+      - "Package.swift"
+      - "Resources/**"
+      - "packaging/**"
+      - "scripts/render-formula.sh"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    env:
+      TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: v
+        run: |
+          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match Info.plist version $version"
+            exit 1
+          fi
+
+      - name: Test
+        run: make test
+
+      - name: Build universal app tarball
+        run: make dist
+
+      - name: Checksum and formula
+        id: sum
+        run: |
+          tarball="build/jumpcall-${{ steps.v.outputs.version }}-macos-universal.tar.gz"
+          sha=$(shasum -a 256 "$tarball" | cut -d' ' -f1)
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          scripts/render-formula.sh "${{ steps.v.outputs.version }}" "$sha" > build/jumpcall.rb
+          {
+            echo "### jumpcall ${{ steps.v.outputs.version }}"
+            echo "sha256: \`$sha\`"
+            echo '```ruby'; cat build/jumpcall.rb; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Smoke-test the packaged app
+        run: |
+          tmp=$(mktemp -d)
+          tar -xzf "${{ steps.sum.outputs.tarball }}" -C "$tmp"
+          app="$tmp/jumpcall-${{ steps.v.outputs.version }}/JumpCall.app"
+          codesign --verify --strict "$app"
+          lipo -archs "$app/Contents/MacOS/jumpcall"
+          "$app/Contents/MacOS/jumpcall" version
+
+      - name: Upload artifact (dry run)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: jumpcall-${{ steps.v.outputs.version }}-macos-universal
+          path: |
+            ${{ steps.sum.outputs.tarball }}
+            build/jumpcall.rb
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "${{ steps.sum.outputs.tarball }}" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "${{ steps.sum.outputs.tarball }}" \
+              --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+          fi
+
+      - name: Bump Homebrew tap
+        if: startsWith(github.ref, 'refs/tags/') && env.TAP_TOKEN != ''
+        run: |
+          git clone "https://x-access-token:${TAP_TOKEN}@github.com/joncode/homebrew-tap.git" tap
+          cp build/jumpcall.rb tap/Formula/jumpcall.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/jumpcall.rb
+          git diff --cached --quiet && { echo "formula unchanged"; exit 0; }
+          git commit -m "jumpcall ${{ steps.v.outputs.version }} (prebuilt)"
+          git push
