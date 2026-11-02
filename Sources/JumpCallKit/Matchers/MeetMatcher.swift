@@ -38,6 +38,12 @@ public struct MeetMatcher: PlatformMatcher {
     public let id = "meet"
     public let displayName = "Google Meet"
     let browsers: [Browser]
+    let system: any WindowSystem
+
+    public init(browsers: [Browser], system: any WindowSystem = LiveWindowSystem()) {
+        self.browsers = browsers
+        self.system = system
+    }
 
     /// True when any of `micBundleIDs` belongs to this browser.
     public static func holdsMic(_ browser: Browser, micBundleIDs: [String]) -> Bool {
@@ -151,32 +157,9 @@ public struct MeetMatcher: PlatformMatcher {
     public func jump(_ handle: CallHandle) -> Bool {
         guard let browser = browsers.first(where: { $0.id == handle.browserID }) else { return false }
         guard let window = handle.windowIndex, let tab = handle.tabIndex else {
-            return jumpToHiddenWindow(browser, title: handle.axWindowTitle)
+            return BrowserJump.toWindow(browser, title: handle.axWindowTitle, system: system)
         }
-        let ok = ScriptRunner.run(Self.jumpScript(for: browser, window: window, tab: tab)) != nil
-        // Belt and suspenders for cross-Space / full-screen switching.
-        onMain {
-            ProcessProbe.runningApp(bundleID: browser.bundleID)?
-                .activate(options: [.activateAllWindows])
-        }
-        return ok
-    }
-
-    /// AX path: raise the exact window found at detect time (works across
-    /// all profiles/incognito/PWAs). Re-verify on click means the title is
-    /// at most a moment old. Activate WITHOUT .activateAllWindows so other
-    /// windows don't pile on top of the raised one; if no title was found
-    /// (mic-only fallback), activate everything — one window-switch away.
-    private func jumpToHiddenWindow(_ browser: Browser, title: String?) -> Bool {
-        onMain {
-            let apps = NSRunningApplication.runningApplications(withBundleIdentifier: browser.bundleID)
-            guard let title else {
-                return apps.first?.activate(options: [.activateAllWindows]) ?? false
-            }
-            let raised = apps.contains { AXWindowProbe.raise(windowTitled: title, pid: $0.processIdentifier) }
-            let activated = apps.first?.activate(options: []) ?? false
-            return raised || activated
-        }
+        return BrowserJump.toTab(browser, window: window, tab: tab, system: system)
     }
 
     /// Real meetings look like meet.google.com/abc-defg-hij (plus optional

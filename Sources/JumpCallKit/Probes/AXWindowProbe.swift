@@ -92,6 +92,31 @@ public enum AXWindowProbe {
         return false
     }
 
+    /// Un-minimize the window with this exact title.
+    public static func setMinimized(_ minimized: Bool, windowTitled title: String, pid: pid_t) -> Bool {
+        guard let window = element(windowTitled: title, pid: pid) else { return false }
+        return AXUIElementSetAttributeValue(
+            window, kAXMinimizedAttribute as CFString,
+            (minimized ? kCFBooleanTrue : kCFBooleanFalse) as CFTypeRef) == .success
+    }
+
+    /// Make the window with this exact title its app's main window. AXRaise
+    /// alone only reorders; without this, activating the app can bring the
+    /// previous main window (the one covering the call) back on top.
+    public static func makeMain(windowTitled title: String, pid: pid_t) -> Bool {
+        guard let window = element(windowTitled: title, pid: pid) else { return false }
+        return AXUIElementSetAttributeValue(
+            window, kAXMainAttribute as CFString, kCFBooleanTrue) == .success
+    }
+
+    private static func element(windowTitled title: String, pid: pid_t) -> AXUIElement? {
+        let app = AXUIElementCreateApplication(pid)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
+              let windows = value as? [AXUIElement] else { return nil }
+        return windows.first { stringAttribute($0, kAXTitleAttribute) == title }
+    }
+
     // MARK: - Attribute helpers
 
     private static func stringAttribute(_ element: AXUIElement, _ name: String) -> String? {
