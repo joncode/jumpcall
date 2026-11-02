@@ -196,21 +196,28 @@ public struct MeetMatcher: PlatformMatcher {
         """
     }
 
+    /// Selects the tab, moves its window first in the browser's list,
+    /// activates, and returns the tab's title so the caller can find and
+    /// raise the real window via Accessibility.
     static func jumpScript(for browser: Browser, window: Int, tab: Int) -> String {
         if browser.isChromium {
             return """
             tell application "\(browser.appName)"
+            	set t to title of tab \(tab) of window \(window)
             	set active tab index of window \(window) to \(tab)
             	set index of window \(window) to 1
             	activate
+            	return t
             end tell
             """
         }
         return """
         tell application "\(browser.appName)"
+        	set t to name of tab \(tab) of window \(window)
         	tell window \(window) to set current tab to tab \(tab)
         	set index of window \(window) to 1
         	activate
+        	return t
         end tell
         """
     }
