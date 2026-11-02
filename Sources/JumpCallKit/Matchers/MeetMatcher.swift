@@ -162,11 +162,12 @@ public struct MeetMatcher: PlatformMatcher {
         return BrowserJump.toTab(browser, window: window, tab: tab, system: system)
     }
 
-    /// Real meetings look like meet.google.com/abc-defg-hij (plus optional
-    /// query/fragment) or meet.google.com/lookup/<slug> for edu accounts.
-    /// The landing page, /new, etc. must NOT count as a live call.
+    /// Real meetings look like meet.google.com/abc-defg-hij or, since late
+    /// 2026, meet.google.com/meet/abc-defg-hij (plus optional query/fragment),
+    /// or meet.google.com/lookup/<slug> for edu accounts. The landing page,
+    /// /new, etc. must NOT count as a live call.
     public static func isMeetingURL(_ url: String) -> Bool {
-        let code = /https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}([\/?#].*)?/
+        let code = /https:\/\/meet\.google\.com\/(meet\/)?[a-z]{3}-[a-z]{4}-[a-z]{3}([\/?#].*)?/
         let lookup = /https:\/\/meet\.google\.com\/lookup\/[A-Za-z0-9-]+([\/?#].*)?/
         return url.wholeMatch(of: code) != nil || url.wholeMatch(of: lookup) != nil
     }

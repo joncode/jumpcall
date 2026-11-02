@@ -65,6 +65,8 @@ var failed = 0
         "https://meet.google.com/abc-defg-hij?authuser=1",
         "https://meet.google.com/abc-defg-hij#config",
         "https://meet.google.com/abc-defg-hij/",
+        "https://meet.google.com/meet/abc-defg-hij",
+        "https://meet.google.com/meet/iui-xhtk-wep?authuser=0", // field report, Safari, Nov 2026
         "https://meet.google.com/lookup/abc123",
         "https://meet.google.com/lookup/Abc-123?hs=180",
     ]
@@ -75,6 +77,9 @@ var failed = 0
         "https://meet.google.com/",
         "https://meet.google.com/landing",
         "https://meet.google.com/new",
+        "https://meet.google.com/meet/",
+        "https://meet.google.com/meet/new",
+        "https://meet.google.com/meet/ABC-DEFG-HIJ",
         "https://meet.google.com",
         "https://evil.example.com/meet.google.com/abc-defg-hij",
         "https://notmeet.google.com/abc-defg-hij",
